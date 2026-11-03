@@ -337,6 +337,37 @@ class VSCGallery(object):
         }
         return result
 
+class VSCMarketplaceItem:
+    def __init__(self, gallery):
+        self.gallery = gallery
+
+    def on_get(self, req, resp):
+        import re
+        identity = req.get_param("itemName", required=True)
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*\.[A-Za-z0-9][A-Za-z0-9_-]*", identity):
+            raise falcon.HTTPBadRequest(description="Expected publisher.extension")
+        canonical = next((key for key in self.gallery.extensions if key.lower() == identity.lower()), None)
+        if canonical is None:
+            raise falcon.HTTPNotFound(description="Extension is not mirrored")
+        resp.status = falcon.HTTP_302
+        resp.set_header("Location", "/extensions/" + quote(canonical, safe=""))
+
+
+class VSCUIAsset:
+    def on_get(self, req, resp, filename):
+        if filename not in {"style.css", "app.js"}:
+            raise falcon.HTTPNotFound()
+        path = vsc.CONTENT / filename
+        resp.content_type = "text/css" if filename.endswith(".css") else "application/javascript"
+        resp.text = path.read_text()
+
+
+class VSCExtensionPage:
+    def on_get(self, req, resp, identity=None, quality=None):
+        resp.content_type = "text/html"
+        resp.text = (vsc.CONTENT / "index.html").read_text()
+
+
 class VSCIndex(object):
 
     def __init__(self):
@@ -402,7 +433,34 @@ class VSCCatalog:
         self.gallery = gallery
 
     def on_get(self, req, resp):
-        resp.media = {"extensions": list(self.gallery.extensions.values()), "signatureVerification": "Performed by VS Code, not this mirror"}
+        binaries = []
+        root = Path(vsc.ARTIFACTS_INSTALLERS)
+        for platform_dir in sorted(root.iterdir()):
+            if not platform_dir.is_dir() or platform_dir.is_symlink():
+                continue
+            for quality_dir in sorted(platform_dir.iterdir()):
+                if not quality_dir.is_dir() or quality_dir.is_symlink():
+                    continue
+                versions = []
+                seen = set()
+                for metadata_path in [quality_dir / "latest.json"] + sorted(quality_dir.glob("*.json")):
+                    if metadata_path.is_symlink():
+                        continue
+                    metadata = vsc.Utility.load_json(metadata_path)
+                    if not isinstance(metadata, dict) or not metadata.get("version") or metadata["version"] in seen:
+                        continue
+                    seen.add(metadata["version"])
+                    payload = vsc.Utility.first_file(str(quality_dir), "vscode-" + str(metadata.get("name", "")) + ".*")
+                    if payload:
+                        try:
+                            metadata["downloadUrl"] = vsc.artifact_url(payload)
+                            metadata["sizeBytes"] = Path(payload).stat().st_size
+                        except (ValueError, OSError):
+                            pass
+                    versions.append(metadata)
+                if versions:
+                    binaries.append({"identity": platform_dir.name, "quality": quality_dir.name, "versions": versions})
+        resp.media = {"extensions": list(self.gallery.extensions.values()), "binaries": binaries, "signatureVerification": "Performed by VS Code, not this mirror"}
 
 
 class VSCArtifact:
@@ -451,6 +509,11 @@ def create_app(start_workers=True):
     app.add_route('/_apis/public/gallery/vscode/{publisher}/{name}/latest', VSCLatestExtension(gallery))
     app.add_route('/_apis/public/gallery/publishers/{publisher}/extensions/{name}/{version}/stats', VSCStatistics())
     app.add_route('/api/catalog', VSCCatalog(gallery))
+    app.add_route('/items', VSCMarketplaceItem(gallery))
+    app.add_route('/extensions/{identity}', VSCExtensionPage())
+    app.add_route('/binaries', VSCExtensionPage())
+    app.add_route('/binaries/{identity}/{quality}', VSCExtensionPage())
+    app.add_route('/ui/{filename}', VSCUIAsset())
     app.add_route('/browse', VSCDirectoryBrowse(vsc.ARTIFACTS))
     app.add_route('/', VSCIndex())
     app.add_route('/artifacts/{asset_path:path}', VSCArtifact())

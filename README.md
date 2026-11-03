@@ -126,3 +126,21 @@ For production use Gunicorn's `server:create_app()` factory from `vscoffline/`. 
 - [Microsoft enterprise extension guidance](https://code.visualstudio.com/docs/enterprise/extensions). Its official private marketplace requires enterprise account access and is not substituted for this project.
 
 Check publisher/Marketplace terms before redistribution. This fork's MIT license does not change the licenses of VS Code binaries, third-party extensions, or Microsoft's verification tool.
+
+## Artifact pages and VS Code's Marketplace link
+
+The compact catalog separates **Extensions** and **Binaries**. Extension pages expose the original mirrored icon, version/platform choices, readme, changelog, manifest, license, asset links and full metadata. Binaries are indexed from `installers/<platform>/<quality>/*.json`; each platform/channel has a detail page with actual version, architecture, commit, hashes and download metadata. Only existing mirrored metadata is shown. Markdown/manifest/license artifacts are displayed as safe text, not executed as HTML.
+
+VS Code 1.144.0 constructs its Marketplace detail URL from the client product/gallery `itemUrl` plus `?itemName={publisher}.{name}`. The server supports:
+
+```text
+GET /items?itemName=publisher.extension
+```
+
+It redirects to that exact local `/extensions/publisher.extension` page, case-insensitively matching the mirrored canonical ID. Unknown extensions return 404; malformed IDs return 400. There is no redirect to the public Marketplace or a generic search page. The optional review query is accepted, but this mirror has no review-writing service.
+
+In the inherited DNS-mirror deployment, a standard client's `https://marketplace.visualstudio.com/items?itemName=...` URL must resolve to this service with correctly trusted matching TLS. If the client distribution exposes its own supported gallery configuration, its item URL must point to this service's `/items`; do not assume `PUBLIC_URL` alone changes the client-generated Marketplace link. This fork does not edit/repackage VS Code or silently alter client configuration. Microsoft's enterprise Private Marketplace policy is a different authenticated workflow, not a promise that arbitrary custom item URLs are a supported user setting in branded VS Code.
+
+Source trace: the tagged `extensionGalleryManifestService.ts` creates the item template; `extensionGalleryService.ts` expands publisher/name; `extensionsWorkbenchService.ts` exposes that as `extension.url`; `extensionEditor.ts` opens it from the Marketplace resource link. Local browser navigation through `/items?itemName=ms-vscode.hexeditor` was tested to land on its exact extension page. Clicking from Ron's actual VS Code desktop still needs his client/network validation.
+
+The GitHub releases API listed 1.144.0 at inspection time, while the live Microsoft updater served a 1.144.1 CLI Alpine x64 binary. The latter was downloaded locally and checked against its advertised SHA-256 for the Binaries UI test. It is not bundled in this repository. The protocol inspection above remains explicitly pinned to the available 1.144.0 source tag rather than claiming every shipping build is certified.

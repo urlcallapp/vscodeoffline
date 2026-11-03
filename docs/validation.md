@@ -4,7 +4,7 @@ Baseline: `urlcallapp/vscodeoffline` fork of `LOLINTERNETZ/vscodeoffline`, commi
 
 ## Executed
 
-- 39 pytest tests passed on Python 3.12.15 and 3.13.17.
+- 42 pytest tests passed on Python 3.12.15 and 3.13.17.
 - Python compile checks and Ruff F checks passed.
 - Gunicorn 26.2.0, Python 3.12 process startup using `server:create_app()` and an empty artifact directory returned a valid empty catalog. Process stopped after the smoke check.
 - Browser checks at 1440, 390, and 320px: no page overflow, no page-script errors, no external resource requests; search, empty state, and directory links worked. Actual desktop/mobile screenshots inspected.
@@ -28,3 +28,9 @@ Baseline: `urlcallapp/vscodeoffline` fork of `LOLINTERNETZ/vscodeoffline`, commi
 - Extensions can have external runtime assets outside VSIX/dependency metadata, and applicable extension/Marketplace licenses still govern mirroring.
 - TLS now requires organization-supplied certificates instead of the expired historical chain. Existing deployments need to provide the `/run/tls` mount or a trusted TLS reverse proxy.
 - The gallery is unauthenticated. Place it only on a trusted network or behind an access-control proxy.
+
+## UI revision after owner feedback
+
+Removed the original hero/setup prose. Separate Extensions and Binaries tile views now open dedicated detail pages. Real local Hex Editor metadata/icon/readme/manifest/assets and real Microsoft CLI Alpine x64 1.144.1 binary metadata were used for browser checks. Binary SHA-256 matched its vendor metadata. Neither artifact is included in code changes. Rechecked catalog/detail pages at desktop, 390px and 320px, plus local readme/manifest/assets tabs. No page overflow, external requests or browser errors observed.
+
+The Marketplace link route `/items?itemName=ms-vscode.hexeditor` was followed in the browser to `/extensions/ms-vscode.hexeditor`; unknown IDs return 404, malformed IDs return 400. Tagged source inspection traced VS Code's Marketplace link through itemUrl -> detailsLink -> extension.url -> openerService.open. Actual clicking from the owner's desktop is still unverified.

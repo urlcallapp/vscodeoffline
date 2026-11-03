@@ -244,3 +244,34 @@ def test_bad_signature_archive_does_not_publish_state(artifacts):
     session=Mock();session.get.side_effect=[response(zipbytes()),response(zipbytes('wrong-entry'))]
     with pytest.raises(ValueError):downloadable().download_assets(artifacts/'extensions',session)
     assert not list((artifacts/'extensions').rglob('latest.json'))
+
+def test_binaries_catalog_and_detail_routes(artifacts):
+    folder=artifacts/'installers/linux-x64/stable';folder.mkdir(parents=True)
+    binary={'name':'1.144.0','version':'fixture-commit','platform':'linux','architecture':'x64','quality':'stable','sha256hash':'fixture-checksum'}
+    (folder/'latest.json').write_text(json.dumps(binary));(folder/'fixture-commit.json').write_text(json.dumps(binary));(folder/'vscode-1.144.0.tar.gz').write_bytes(b'fixture only')
+    c=testing.TestClient(server.create_app(False));entry=c.simulate_get('/api/catalog').json['binaries'][0]
+    assert entry['identity']=='linux-x64'
+    assert len(entry['versions'])==1
+    assert entry['versions'][0]['sizeBytes']==12
+    assert entry['versions'][0]['downloadUrl'].endswith('/artifacts/installers/linux-x64/stable/vscode-1.144.0.tar.gz')
+    assert c.simulate_get('/binaries').status_code==200
+    assert c.simulate_get('/binaries/linux-x64/stable').status_code==200
+
+
+def test_ui_assets_and_extension_detail_route(artifacts):
+    c=testing.TestClient(server.create_app(False))
+    assert c.simulate_get('/extensions/sample.tool').status_code==200
+    assert c.simulate_get('/ui/app.js').status_code==200
+    assert c.simulate_get('/ui/style.css').content_type=='text/css'
+    assert c.simulate_get('/ui/secret.txt').status_code==404
+
+def test_vscode_marketplace_item_link_to_exact_local_extension(artifacts):
+    folder=artifacts/'extensions/sample.tool';folder.mkdir();(folder/'latest.json').write_text(json.dumps(extension()))
+    c=testing.TestClient(server.create_app(False))
+    for params in [{'itemName':'sample.tool'},{'itemName':'SAMPLE.TOOL','ssr':'false'}]:
+        response=c.simulate_get('/items',params=params)
+        assert response.status_code==302
+        assert response.headers['location']=='/extensions/sample.tool'
+    assert c.simulate_get('/items',params={'itemName':'missing.tool'}).status_code==404
+    assert c.simulate_get('/items',params={'itemName':'https://external.invalid'}).status_code==400
+    assert c.simulate_get('/items').status_code==400

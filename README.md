@@ -1,176 +1,128 @@
-# Visual Studio Code - Offline Gallery and Updater
+# Visual Studio Code Offline Gallery and Updater
 
-This enables Visual Studio Code's web presence to be mirrored for seamless use in an offline environment (e.g. air-gapped), or to run a private gallery.
+Mirror VS Code extensions and installer/update artifacts into an air-gapped network without changing their bytes. This is a fork of [LOLINTERNETZ/vscodeoffline](https://github.com/LOLINTERNETZ/vscodeoffline), not Microsoft's official Private Marketplace.
 
-In effect, content is served through expected interfaces, without changing any of the publicly available binaries. Typically, you would sync the content needing to be availabe on the non-Internet connected system and point the DNS to the mirror service. **No binaries nor extensions are modified.**
+- **vscsync** runs on an Internet-connected system and downloads installer binaries, extension assets, extension packs/dependencies, and the Marketplace malicious-extension list.
+- **vscgallery** serves the mirrored catalog, update API, and original assets on the offline network. The responsive catalog UI has local search, platform filters, sorting, VSIX links, and artifact browsing. It loads no external fonts, scripts, or images.
 
-## Features
+## Build and transfer
 
-On the Internet connected system , **vscsync** will:
-
-- Mirror the VS Code installer/update binaries across platforms (Windows|Linux|Darwin) and builds (stable|insider);
-- Mirror recommended/typical extensions from the marketplace;
-- Mirror the malicious extension list;
-- Mirror a list of manually specified extensions (artifacts/specified.json); and
-- Optionally, mirror all extensions (--syncall, rather than the default of --sync).
-
-On the non-Internet connected system, **vscgallery**:
-
-- Implements the updater interface to enable offline updating;
-- Implements the extension API to enable offline extension use;
-- Implements the malicious extension list;
-- Implements initial support for multiple versions;
-- Supports extension search (name, author and short description) and sorting;
-- Supports custom/private extensions (follow the structure of a mirrored extension); and
-- Supports Remote Development.
-
-Possible TODO List:
-
-- vscgallery - Support paging, if it's really needed (who searches 1000s of extensions anyway).
-- Investigate some form of dependency handling (if possible).
-- Add test cases.
-
-## Requirements
-
-- Docker (ideally with docker-compose for simplicity)
-
-## Getting Started - Full Offline Use - Using Docker Containers
-
-There are two components, **vscsync** which mirrors the content on an Internet connected system, and **vscgallery** which provides the necessary APIs and endpoints necessary to support VS Code's use. While it is designed for offline environments, it is possible, with some DNS trickery, that this could be operated as a "corporate" VS Code gallery.
-
-On the Internet connected system:
-
-1. Acquire/mirror the Docker containers (vscsync/vscgallery).
-
-   `docker-compose pull`
-
-2. Setup and run the vscsync service on the Internet connected system.
-
-   - Ensuring the artifact directory is accessible to whatever transfer mechanism you will use and vscsync.
-   - Run vscsync service and ensure the artifacts are generated.
-   - Wait for the sync to complete. You should see 'Complete' and that it is sleeping when the artifacts have finished downloading.
-
-   `docker-compose up vscsync`
-
-3. Copy the artifacts to the non-Internet connected system.
-
-On the non-Internet connected system:
-
-1. On the non-Internet connected system, ensure the following DNS addresses are pointed toward the vscgallery service.
-
-   - update.code.visualstudio.com
-   - az764295.vo.msecnd.net
-   - marketplace.visualstudio.com
-
-   This may be achieved using a corporate DNS server, or by modifying a client's host file.
-
-2. Sort out SSL/TLS within your environment to support offline use.
-
-   - Either create a certificate which is signed for the above domains, and is trusted by the clients; or
-   - Deploy the bundled root and intermediate certificate authority (vscoffline/vscgallery/ssl/ca.crt and ia.crt), with the obvious security tradeoff.
-
-   **Windows 10**: Import the certificates into the machine's trusted root certificate authority (Start > "Manage Computer Certificates").
-
-   **Darwin**: Import the certificates into the machine's trusted root certificate authority.
-
-   **Ubuntu**: Easiest method seems to be Open Chrome, navigate to
-   chrome://settings/certificates, select authorities and add the certificates. Firefox on Ubuntu maintains its own certificate store. Either add the root CA, or switch Firefox to use OS provided certificates (see: <https://github.com/LOLINTERNETZ/vscodeoffline/issues/43#issuecomment-1545801875>).
-
-3. Run the vscgallery service, ensuring the artifacts are accessible to the service. It needs to listen on port 443.
-
-   `docker-compose up vscgallery`
-
-4. Using Chrome/Firefox navigate to <https://update.code.visualstudio.com>. You should not see any certificate warnings, if you do it's unlikely to work in VS Code.
-
-5. Open VS Code, hopefully you can magically install extensions and update the install. The Help > Developer Tools > Network should tell you what is going on.
-
-Note: Chrome, rather than other browsers, will likely give you a better indication as to what is going on as VS Code and Chrome share the same certificate trust.
-
-## Getting Started - Standalone Install (Testing or Private Gallery) - Using Docker Containers
-
-This guide will setup the vscsync and vscgallery service on the same Docker host.
-
-1. Grab the docker-compose.yml file.
-
-   - Ensure the docker-compose DNS configuration will override what is configured in step 2 (e.g. vscsync can access the Internet, whereas local hosts are directed toward the vscgallery service).
-   - Ensure both containers will mount the same artifact folder.
-
-2. Point the DNS addresses to the vscgallery service.
-
-   - update.code.visualstudio.com
-   - ~~az764295.vo.msecnd.net~~ (Removed 2025/08/22)
-   - marketplace.visualstudio.com
-   - main.vscode-cdn.net (Added 2025/08/22)
-
-   This may be achieved using a corporate DNS server, or by modifying a client's host file.
-
-3. Deploy SSL/TLS certificates as necessary, as described above.
-
-4. Run the services
-
-   `docker-compose up`
-
-5. Using Chrome navigate to https://update.code.visualstudio.com. You should not see any certificate warnings, if you do it's unlikely to work in VS Code.
-
-6. Open VS Code, hopefully you can magically install extensions and update the install. The Help > Developer Tools > Network should tell you what is going on.
-
-## Sync Arguments (vscsync)
-
-These arguments can be passed as command line arguments to sync.py (e.g. --varA or --varB), or passed via the Docker environment variable `SYNCARGS`.
-
-### Typical Sync Args
-
-- `--sync` To fetch stable binaries and popular extensions.
-- `--syncall` To fetch everything (stable binaries, insider binaries and all extensions).
-- `--sync --check-insider` To fetch stable binaries, insider binaries and popular extensions.
-
-### Possible Args
-
-```text
-usage: sync.py [-h] [--sync] [--syncall] [--artifacts ARTIFACTDIR]
-               [--frequency FREQUENCY] [--check-binaries] [--check-insider]
-               [--check-recommended-extensions] [--check-specified-extensions]
-               [--extension-name EXTENSIONNAME]
-               [--extension-search EXTENSIONSEARCH] [--update-binaries]
-               [--update-extensions] [--update-malicious-extensions]
-               [--prerelease-extensions] [--vscode-version VSCODEVERSION]
-               [--skip-binaries] [--debug] [--logfile LOGFILE]
-
-Synchronises VSCode in an Offline Environment
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --sync                The basic-user sync. It includes stable binaries and
-                        typical extensions
-  --syncall             The power-user sync. It includes all binaries and
-                        extensions
-  --artifacts ARTIFACTDIR
-                        Path to downloaded artifacts
-  --frequency FREQUENCY
-                        The frequency to try and update (e.g. sleep for '12h'
-                        and try again
-  --total-recommended N
-                        The number of recommended extensions to fetch
-                        (default: 200)
-  --check-binaries      Check for updated binaries
-  --check-insider       Check for updated insider binaries
-  --check-recommended-extensions
-                        Check for recommended extensions
-  --check-specified-extensions
-                        Check for extensions in <artifacts>/specified.json
-  --extension-name EXTENSIONNAME
-                        Find a specific extension by name
-  --extension-search EXTENSIONSEARCH
-                        Search for a set of extensions
-  --update-binaries     Download binaries
-  --update-extensions   Download extensions
-  --update-malicious-extensions
-                        Update the malicious extension list
-  --prerelease-extensions
-                        Download prerelease extensions. Defaults to false.
-  --vscode-version
-                        VSCode version to search extensions as.
-  --skip-binaries       Skip downloading binaries
-  --debug               Show debug output
-  --logfile LOGFILE     Sets a logfile to store loggging output
+```sh
+docker compose build
+# Online system only. The default sync repeats every 12 hours.
+docker compose up vscsync
 ```
+
+Wait for `Complete` in the sync log, then stop sync or take a consistent snapshot before copying the **complete** `artifacts/` directory into the offline network. Preserve metadata, original VSIX/signature assets, and hidden checksum receipts. A checksum receipt only detects local changes; it is not a cryptographic signature or an authenticity guarantee.
+
+The fork builds local images (`vscodeoffline-sync:local`, `vscodeoffline-gallery:local`). Its CI only validates and builds. It does not log into Docker Hub, publish images, or use the upstream author's image namespace.
+
+## Production DNS and TLS
+
+The existing deployment model redirects VS Code service hostnames to this gallery:
+
+- `update.code.visualstudio.com`
+- `marketplace.visualstudio.com`
+- `main.vscode-cdn.net`
+
+The online sync system must still resolve the real public services, not its offline mirror. Client distribution, build configuration, and VS Code version can change which hosts are needed. Confirm the actual requests in the target client's Developer Tools/Shared logs. Do not infer VSCodium, Code OSS, VS Code Desktop, VS Code Server, and Web are interchangeable.
+
+Provide your organization's trusted certificate/key as `tls/tls.crt` and `tls/tls.key`, mounted read-only at `/run/tls`. Include the required service hostnames in its SANs. Deploy trust through your organization's approved process. **Do not trust or reuse the historical bundled certificate chain/key**: the leaf expired November 20, 2025, the intermediate expired May 20, 2026, and the leaf lacks `main.vscode-cdn.net`. The gallery no longer uses it by default. No domain, DNS, trust-store, or client settings are changed by this project.
+
+```sh
+docker compose up vscgallery
+```
+
+An organization-managed reverse proxy can terminate TLS instead. Set `SSLARGS=` and `BIND=0.0.0.0:8080` behind that trusted proxy. Do not expose plaintext as the production TLS setup.
+
+Environment variables:
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `ARTIFACTS` | `/artifacts` | Local artifact directory |
+| `PUBLIC_URL` | `https://update.code.visualstudio.com` | Public asset origin, not a local filesystem path |
+| `BIND` | `0.0.0.0:443` | Gunicorn listen address |
+| `SSLARGS` | `/run/tls` certificate/key flags | Explicit TLS configuration |
+| `THREADS` | `4` | Gunicorn threads |
+| `TIMEOUT` | `180` | Gunicorn timeout |
+
+Only run this unauthenticated gallery on a trusted network or behind your own access-control proxy. The catalog and artifacts are readable to anyone who can reach it. The UI is browse/download only; it is not an authenticated admin/upload portal.
+
+## Extension signatures and air-gap installs
+
+Keep VS Code's extension signature verification enabled. The mirror does not re-sign, strip signatures, repackage VSIX files, or label an archive's presence as successful verification. It downloads the original `Microsoft.VisualStudio.Services.VsixSignature` asset alongside the corresponding platform/version's VSIX. VS Code verifies the cryptographic signature during installation.
+
+New sync behavior:
+
+- Reject failed HTTP responses and empty assets rather than cache error pages as packages.
+- Download to a temporary file and atomically replace the destination only on success.
+- Check VSIX/signature ZIP shape, including `.signature.p7s` in signature archives. These are structural checks, not cryptographic verification.
+- Store local SHA-256 receipts. Caches without receipts, including downloads created by the old implementation, are fetched again once. This can increase the first sync's bandwidth and duration.
+- Publish extension metadata only after downloads succeed. Follow extension packs and `extensionDependencies` transitively with duplicate/cycle and blocklist guards.
+
+If installation fails, capture the exact client distribution/version, OS/architecture, extension ID/version/target platform, request URL/status, and Shared log error code. Distinguish TLS trust errors, missing signature archives, mismatched or corrupted bytes, unsupported verifier environments, and certificate-revocation/trust failures. Language servers, runtimes and other resources downloaded by extensions may also require separate offline preparation.
+
+A local integration check mirrored `ms-vscode.hexeditor` 1.11.1, served the original package/signature through the gallery, and verified them with Microsoft's separately installed `@vscode/vsce-sign` 2.1.0: `Success`, verification executed. A modified copy failed with `PackageIntegrityCheckFailed`. The verifier is **not bundled or redistributed** by this MIT project. Its Microsoft license has separate use/distribution limits. This test does not establish successful installation in every air-gapped client or prove that certificate-revocation network access is unnecessary in every environment.
+
+## Protocol compatibility
+
+Routes checked against the VS Code **1.144.0** source (October 28, 2026):
+
+| Endpoint | Purpose |
+| --- | --- |
+| `POST /_apis/public/gallery/extensionquery` | Filter/sort/page mirrored extensions; total count before paging |
+| `GET /_apis/public/gallery/vscode/{publisher}/{name}/latest` | Raw cached extension/version metadata for the latest-version resource API |
+| `POST /_apis/public/gallery/publishers/{publisher}/extensions/{name}/{version}/stats` | Accept install statistics without storing or forwarding them |
+| `GET /artifacts/{path}` | Original local asset bytes; ignores client query parameters such as targetPlatform/redirect |
+| `GET /api/update/{platform}/{quality}/{commit}` | Installer update metadata |
+| `GET /commit:{commit}/{platform}/{quality}` | Redirect to cached installer bytes |
+| `GET /extensions/workspaceRecommendations.json.gz` | Legacy recommendation data, when mirrored |
+| `GET /extensions/marketplace.json` | Mirrored malicious-extension/control data |
+| `GET /api/catalog` | Local UI catalog, not a VS Code protocol endpoint |
+
+`PUBLIC_URL` determines asset paths. Local directories never become public URLs. Exact missing-name searches return no results, not unrelated recommended extensions. Deleted extensions disappear after the gallery reloads the cache. Malformed queries return 400. Directory traversal, outside-root symlinks, raw HTML filenames and hidden download receipts are blocked/escaped; untrusted HTML assets are sandboxed.
+
+Not implemented: Microsoft's authenticated enterprise manifest/sign-in workflow; arbitrary Marketplace APIs; a general-purpose upstream proxy; extension content re-signing. Query version flags are not fully projected: cached versions/platform variants are returned, with compatibility selection left to the client. End-to-end installation on Ron's target VS Code distribution still needs its version/error evidence and testing. No claim of full current-client certification is made.
+
+## Sync options
+
+Use `python vscoffline/sync.py --help` for the complete list. Common choices:
+
+```sh
+# Stable binaries and recommended/specified extensions, repeats every 12 hours.
+python vscoffline/sync.py --artifacts ./artifacts --sync
+# Explicit list only, plus their packs/dependencies. Does not select recommendations.
+python vscoffline/sync.py --artifacts ./artifacts --check-specified-extensions --update-extensions
+# Broad catalog sync. Can use substantial bandwidth/disk; do not choose casually.
+python vscoffline/sync.py --artifacts ./artifacts --syncall
+```
+
+`artifacts/specified.json` uses `{"extensions":["publisher.extension"]}`. Pack/dependency expansion can legitimately produce more artifacts than the number of entries. `--vscode-version` controls the sync client's advertised version. `--prerelease-extensions` permits prerelease packages. `SYNCARGS` passes options to the sync container.
+
+Custom/private extensions need matching metadata and original asset layout. Do not label privately supplied packages as Microsoft-signed. This increment does not add a VSIX-upload interface.
+
+## Local development and tests
+
+Python 3.12 and 3.13 are tested. Dependencies are currently resolved from requirements rather than a reproducible lockfile.
+
+```sh
+python -m venv .venv
+. .venv/bin/activate
+pip install -r vscoffline/vscsync/requirements.txt -r vscoffline/vscgallery/requirements.txt pytest
+python -m pytest -q tests
+mkdir -p ./artifacts
+ARTIFACTS="$PWD/artifacts" PUBLIC_URL=http://127.0.0.1:5000 python vscoffline/server.py
+```
+
+For production use Gunicorn's `server:create_app()` factory from `vscoffline/`. Importing the module no longer starts background watchers or exits if the default artifact directory is absent. `create_app(start_workers=False)` supports isolated protocol tests. CI additionally builds both images and smoke-tests the gallery container without TLS. The container smoke is defined but has not yet run on this unpublished branch.
+
+## Source references
+
+- [Original project](https://github.com/LOLINTERNETZ/vscodeoffline), MIT license retained in `LICENCE`.
+- [VS Code 1.144.0 gallery service](https://raw.githubusercontent.com/microsoft/vscode/1.144.0/src/vs/platform/extensionManagement/common/extensionGalleryService.ts)
+- [VS Code 1.144.0 gallery resources](https://raw.githubusercontent.com/microsoft/vscode/1.144.0/src/vs/platform/extensionManagement/common/extensionGalleryManifestService.ts)
+- [VS Code 1.144.0 download/verification flow](https://raw.githubusercontent.com/microsoft/vscode/1.144.0/src/vs/platform/extensionManagement/node/extensionDownloader.ts)
+- [Microsoft extension security](https://code.visualstudio.com/docs/configure/extensions/extension-runtime-security)
+- [Microsoft enterprise extension guidance](https://code.visualstudio.com/docs/enterprise/extensions). Its official private marketplace requires enterprise account access and is not substituted for this project.
+
+Check publisher/Marketplace terms before redistribution. This fork's MIT license does not change the licenses of VS Code binaries, third-party extensions, or Microsoft's verification tool.

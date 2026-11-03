@@ -3,6 +3,7 @@ import hashlib
 import json
 import os
 import pathlib
+from urllib.parse import quote
 from enum import IntFlag
 from typing import Any, Dict, List, Union
 import logging as log
@@ -17,12 +18,30 @@ URL_RECOMMENDATIONS = r"https://main.vscode-cdn.net/extensions/workspaceRecommen
 URL_MARKETPLACEQUERY = r"https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery"
 URL_MALICIOUS = r"https://main.vscode-cdn.net/extensions/marketplace.json"
 
-URLROOT = "https://update.code.visualstudio.com"
-ARTIFACTS = "/artifacts/"
-ARTIFACTS_INSTALLERS = "/artifacts/installers"
-ARTIFACTS_EXTENSIONS = "/artifacts/extensions"
-ARTIFACT_RECOMMENDATION = "/artifacts/recommendations.json"
-ARTIFACT_MALICIOUS = "/artifacts/malicious.json"
+URLROOT = os.environ.get("PUBLIC_URL", "https://update.code.visualstudio.com").rstrip("/")
+ARTIFACTS = str(pathlib.Path(os.environ.get("ARTIFACTS", "/artifacts")).resolve())
+ARTIFACTS_INSTALLERS = os.path.join(ARTIFACTS, "installers")
+ARTIFACTS_EXTENSIONS = os.path.join(ARTIFACTS, "extensions")
+ARTIFACT_RECOMMENDATION = os.path.join(ARTIFACTS, "recommendations.json")
+ARTIFACT_MALICIOUS = os.path.join(ARTIFACTS, "malicious.json")
+CONTENT = pathlib.Path(__file__).parent / "vscgallery" / "content"
+
+
+def artifact_url(path):
+    """Map a local artifact into the public mount, never expose local disk paths."""
+    relative = pathlib.Path(path).resolve().relative_to(pathlib.Path(ARTIFACTS).resolve())
+    return URLROOT + "/artifacts/" + quote(relative.as_posix(), safe="/")
+
+
+def safe_path(root, *parts):
+    """Reject traversal, absolute paths and symlinks leaving the artifact root."""
+    base = pathlib.Path(root).resolve()
+    if any(pathlib.Path(part).is_absolute() or ".." in pathlib.Path(part).parts for part in parts):
+        raise ValueError("Path escapes artifact root")
+    path = base.joinpath(*parts).resolve()
+    if not path.is_relative_to(base):
+        raise ValueError("Path escapes artifact root")
+    return path
 
 TIMEOUT = 12
 

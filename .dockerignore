@@ -1,2 +1,5 @@
 artifacts/
 __pycache__/
+# Never ship the old public shared TLS identity
+vscoffline/vscgallery/ssl/
+tls/

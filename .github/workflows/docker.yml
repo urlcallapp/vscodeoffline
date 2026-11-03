@@ -1,44 +1,37 @@
-name: ci
-
+name: Verify
 on:
   push:
-    branches:
-      - 'main'
-  release:
-    types: [edited, released]
-
+  pull_request:
+permissions:
+  contents: read
 jobs:
-  docker:
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ['3.12', '3.13']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: pip install -r vscoffline/vscsync/requirements.txt -r vscoffline/vscgallery/requirements.txt pytest
+      - run: python -m pytest -q tests
+      - run: python -m compileall -q vscoffline
+  containers:
     runs-on: ubuntu-latest
     steps:
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-        
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        
-      - name: Login to DockerHub
-        uses: docker/login-action@v3 
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Get version
-        id: get_version
-        uses: battila7/get-version-action@v2
-          
-      - name: Sync - Build and push
-        id: docker_build_sync
-        uses: docker/build-push-action@v6
-        with:
-          file: ./vscoffline/vscsync/Dockerfile          
-          tags: lolinternet/vscsync:latest,lolinternet/vscsync:${{ steps.get_version.outputs.version-without-v }}
-          push: true
-          
-      - name: Sync - Build and push
-        id: docker_build_gallery
-        uses: docker/build-push-action@v6
-        with:
-          file: ./vscoffline/vscgallery/Dockerfile
-          tags: lolinternet/vscgallery:latest,lolinternet/vscgallery:${{ steps.get_version.outputs.version-without-v }}
-          push: true
+      - uses: actions/checkout@v4
+      - run: docker build -f vscoffline/vscsync/Dockerfile -t vscodeoffline-sync:test .
+      - run: docker build -f vscoffline/vscgallery/Dockerfile -t vscodeoffline-gallery:test .
+      - name: Gallery container smoke, no TLS or external services
+        run: |
+          docker run -d --name gallery -p 127.0.0.1:8080:8080 -e BIND=0.0.0.0:8080 -e SSLARGS= vscodeoffline-gallery:test
+          for i in $(seq 1 30); do
+            if curl --fail http://127.0.0.1:8080/api/catalog; then exit 0; fi
+            sleep 1
+          done
+          docker logs gallery
+          exit 1
+      - if: always()
+        run: docker rm -f gallery || true

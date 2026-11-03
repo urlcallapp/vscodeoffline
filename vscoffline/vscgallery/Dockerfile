@@ -14,13 +14,12 @@ ENV ARTIFACTS=/artifacts
 ENV BIND=0.0.0.0:443
 ENV TIMEOUT=180
 ENV THREADS=4
-ENV SSLARGS="--certfile=/opt/vscoffline/vscgallery/ssl/vscoffline.crt --keyfile=/opt/vscoffline/vscgallery/ssl/vscoffline.key"
+ENV SSLARGS="--certfile=/run/tls/tls.crt --keyfile=/run/tls/tls.key"
 
 CMD gunicorn  \
     $SSLARGS \
-    --reload \
     --bind $BIND \
     --access-logfile - \
     --timeout $TIMEOUT \
     --threads $THREADS \
-    server:application
+    "server:create_app()"

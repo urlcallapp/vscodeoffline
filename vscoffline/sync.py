@@ -1,9 +1,12 @@
 from dataclasses import dataclass
 import os
-import sys
 import argparse
 import requests
 import pathlib
+import tempfile
+import zipfile
+import io
+import re
 import hashlib
 import uuid
 import logging
@@ -11,12 +14,42 @@ import json
 import time
 import datetime
 from typing import List
-from platform import release
 import logging as log
 from pytimeparse.timeparse import timeparse
 import vsc
-from distutils.dir_util import create_tree
 from requests.adapters import HTTPAdapter, Retry
+
+
+def atomic_write(path, content):
+    """Replace a file only after a complete successful write on the same filesystem."""
+    path = pathlib.Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(dir=path.parent, prefix=".download-", delete=False) as output:
+            temporary = output.name
+            output.write(content)
+            output.flush()
+            os.fsync(output.fileno())
+        os.replace(temporary, path)
+    finally:
+        if temporary and os.path.exists(temporary):
+            os.unlink(temporary)
+
+
+def mirror_extensions(extensions, destination, marketplace, session, blocked=()):
+    """Follow pack/dependency edges once per ID, including cycles and blocklist checks."""
+    queue = list(extensions)
+    seen = {identity.lower() for identity in blocked}
+    while queue:
+        extension = queue.pop(0)
+        identity = extension.identity.lower()
+        if identity in seen:
+            continue
+        seen.add(identity)
+        extension.download_assets(destination, session)
+        queue.extend(extension.process_embedded_extensions(destination, marketplace))
+        extension.save_state(destination)
 
 
 class VSCUpdateDefinition(object):
@@ -127,7 +160,8 @@ class VSCUpdateDefinition(object):
             log.info(f'Downloading {self} to {destfile}')
             result = requests.get(
                 self.updateurl, allow_redirects=True, timeout=vsc.TIMEOUT)
-            open(destfile, 'wb').write(result.content)
+            result.raise_for_status()
+            atomic_write(destfile, result.content)
 
             if not vsc.Utility.hash_file_and_check(destfile, self.sha256hash):
                 log.warning(
@@ -154,7 +188,7 @@ class VSCUpdateDefinition(object):
         if self.updateurl:
             strs += f" - Version: {self.name} ({self.version})"
         elif self.checkedForUpdate:
-            strs += f" - Latest version not available"
+            strs += " - Latest version not available"
         return strs
 
 
@@ -231,37 +265,49 @@ class VSCExtensionDefinition(object):
                 self.extensionId = raw['extensionId']
 
     def download_assets(self, destination, session):
+        """Mirror original bytes atomically. A receipt is a local checksum, NOT signature verification.
+
+        Unreceipted caches from older versions are downloaded again to replace cached HTTP
+        error pages. VSIX and signature archives must be usable ZIPs; the VS Code client
+        still performs cryptographic verification against the original signature.
+        """
         for version in self.versions:
-            targetplatform = ''
-            if "targetPlatform" in version:
-                targetplatform = version["targetPlatform"]
-            ver_destination = os.path.join(
-                destination, self.identity, version["version"], targetplatform)
-            for file in version["files"]:
-                url = file["source"]
+            targetplatform = version.get("targetPlatform", "")
+            ver_destination = vsc.safe_path(destination, self.identity, version["version"], targetplatform)
+            ver_destination.mkdir(parents=True, exist_ok=True)
+            expected_vsix_hash = next((prop.get("value") for prop in version.get("properties", [])
+                                       if prop.get("key") == "Microsoft.VisualStudio.Services.VsixSha256"), None)
+            if expected_vsix_hash is not None:
+                if not isinstance(expected_vsix_hash, str) or not re.fullmatch(r"[0-9a-fA-F]{64}", expected_vsix_hash):
+                    raise ValueError("Invalid upstream VSIX SHA-256 metadata")
+                expected_vsix_hash = expected_vsix_hash.lower()
+            for asset in version["files"]:
+                expected_hash = expected_vsix_hash if asset["assetType"] == "Microsoft.VisualStudio.Services.VSIXPackage" else None
+                url = asset.get("source")
                 if not url:
-                    log.warning(
-                        'download_asset() cannot download update as asset url is missing')
-                    return
-                asset = file["assetType"]
-                destfile = os.path.join(ver_destination, f'{asset}')
-                create_tree(os.path.abspath(os.sep), (destfile,))
-                if not os.path.exists(destfile):
-                    for i in range(5):
-                        try:
-                            if i == 0:
-                                log.debug(f'Downloading {self.identity} {asset} to {destfile}')
-                            else:
-                                log.info(f'Retrying {i+1}, download {self.identity} {asset} to {destfile}')
-                            result = session.get(
-                                url, allow_redirects=True, timeout=vsc.TIMEOUT)
-                            with open(destfile, 'wb') as dest:
-                                dest.write(result.content)
-                            break
-                        except requests.exceptions.ProxyError:
-                            log.info("ProxyError: Retrying.")
-                        except requests.exceptions.ReadTimeout:
-                            log.info("ReadTimeout: Retrying.")
+                    raise ValueError("Missing asset URL")
+                destfile = vsc.safe_path(str(ver_destination), asset["assetType"])
+                receipt = destfile.with_name("." + destfile.name + ".sha256")
+                if destfile.is_file() and receipt.is_file() and vsc.Utility.hash_file_and_check(destfile, receipt.read_text().strip()) and (not expected_hash or vsc.Utility.hash_file_and_check(destfile, expected_hash)):
+                    continue
+                response = session.get(url, allow_redirects=True, timeout=vsc.TIMEOUT)
+                response.raise_for_status()
+                content = response.content
+                if not content:
+                    raise ValueError("Empty asset: " + asset["assetType"])
+                if asset["assetType"] in ("Microsoft.VisualStudio.Services.VSIXPackage", "Microsoft.VisualStudio.Services.VsixSignature"):
+                    try:
+                        with zipfile.ZipFile(io.BytesIO(content)) as archive:
+                            if asset["assetType"].endswith("VsixSignature") and ".signature.p7s" not in archive.namelist():
+                                raise ValueError("Signature archive missing .signature.p7s")
+                    except zipfile.BadZipFile as error:
+                        raise ValueError("Asset is not a ZIP archive: " + asset["assetType"]) from error
+                digest = hashlib.sha256(content).hexdigest()
+                if expected_hash and digest != expected_hash:
+                    raise ValueError("VSIX SHA-256 does not match upstream metadata")
+                atomic_write(destfile, content)
+                atomic_write(receipt, digest.encode("ascii"))
+        return True
 
     def process_embedded_extensions(self, destination, mp):
         """
@@ -275,24 +321,24 @@ class VSCExtensionDefinition(object):
             manifestpath = os.path.join(
                 destination, self.identity, version["version"], targetplatform, 'Microsoft.VisualStudio.Code.Manifest')
             manifest = vsc.Utility.load_json(manifestpath)
-            if manifest and 'extensionPack' in manifest:
-                for extname in manifest['extensionPack']:
+            if manifest:
+                for extname in dict.fromkeys(manifest.get('extensionPack', []) + manifest.get('extensionDependencies', [])):
                     bonusextension = mp.search_by_extension_name(extname)
                     if bonusextension:
                         bonusextensions.append(bonusextension)
         return bonusextensions
 
     def save_state(self, destination):
-        destination = os.path.join(destination, self.identity)
-        if not os.path.isdir(destination):
-            os.makedirs(destination)
-        # Save as latest
-        with open(os.path.join(destination, 'latest.json'), 'w') as outfile:
-            json.dump(self, outfile, cls=vsc.MagicJsonEncoder, indent=4)
-        # Save in the version folder
+        destination = vsc.safe_path(destination, self.identity)
+        destination.mkdir(parents=True, exist_ok=True)
+        content = json.dumps(self, cls=vsc.MagicJsonEncoder, indent=4).encode("utf-8")
         for version in self.versions:
-            with open(os.path.join(destination, version["version"], 'extension.json'), 'w') as outfile:
-                json.dump(self, outfile, cls=vsc.MagicJsonEncoder, indent=4)
+            folder = vsc.safe_path(str(destination), version["version"], version.get("targetPlatform", ""))
+            folder.mkdir(parents=True, exist_ok=True)
+            version_metadata = dict(self.__dict__, versions=[version])
+            atomic_write(folder / "extension.json", json.dumps(version_metadata, cls=vsc.MagicJsonEncoder, indent=4).encode("utf-8"))
+        # Publish the version pointer last, only after assets have downloaded successfully.
+        atomic_write(destination / "latest.json", content)
 
     def isprerelease(self):
         prerelease = False
@@ -525,10 +571,10 @@ class VSCMarketplace(object):
 
     def backoff_reset(self):
         self.backoff = 1
-        
+
     def backoff_sleep(self):
-        time.sleep(self.backoff)
-        self.backoff *= 2
+        time.sleep(min(self.backoff, 60))
+        self.backoff = min(self.backoff * 2, 60)
 
     def _query_marketplace(self, filtertype, filtervalue, pageNumber=0, pageSize=500, limit=0, sortOrder=vsc.SortOrder.Default, sortBy=vsc.SortBy.NoneOrRelevance, queryFlags=0):
         extensions = {}
@@ -543,6 +589,8 @@ class VSCMarketplace(object):
             pageNumber = pageNumber + 1
             query = self._query(filtertype, filtervalue,
                                 pageNumber, pageSize, queryFlags)
+            query["filters"][0]["sortBy"] = int(sortBy)
+            query["filters"][0]["sortOrder"] = int(sortOrder)
             result = None
             i = 0
             while i < 10:
@@ -555,6 +603,7 @@ class VSCMarketplace(object):
                     elif result.status_code == 429:
                         # Server is rate limiting us. Backoff.
                         self.backoff_sleep()
+                        i += 1
                         continue
                 except requests.exceptions.ProxyError:
                     log.info("ProxyError: Retrying.")
@@ -810,24 +859,9 @@ if __name__ == '__main__':
         if config.updateextensions:
             log.info(
                 f'Checking and Downloading Updates for {len(extensions)} Extensions')
-            count = 0
-            bonus = []
-            for identity in extensions:
-                log.debug(f'Fetching extension: {identity}')
-                if count % 100 == 0:
-                    log.info(
-                        f'Progress {count}/{len(extensions)} ({count/len(extensions)*100:.1f}%)')
-                extensions[identity].download_assets(
-                    config.artifactdir_extensions, session)
-                bonus = extensions[identity].process_embedded_extensions(
-                    config.artifactdir_extensions, mp) + bonus
-                extensions[identity].save_state(config.artifactdir_extensions)
-                count = count + 1
-
-            for bonusextension in bonus:
-                log.debug(f'Processing Embedded Extension: {bonusextension}')
-                bonusextension.download_assets(config.artifactdir_extensions, session)
-                bonusextension.save_state(config.artifactdir_extensions)
+            blocklist = vsc.Utility.load_json(os.path.join(config.artifactdir, 'malicious.json'))
+            blocked = blocklist.get('malicious', []) if isinstance(blocklist, dict) else []
+            mirror_extensions(extensions.values(), config.artifactdir_extensions, mp, session, blocked)
 
         # Check if we did anything
         if config.checkbinaries or config.checkextensions or config.updatebinaries or config.updateextensions or config.updatemalicious or config.checkspecified or config.checkinsider:

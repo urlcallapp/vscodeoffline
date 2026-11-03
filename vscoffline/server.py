@@ -1,6 +1,18 @@
-import os, sys, time, json, glob
+import os, time, glob
+import mimetypes
 import falcon
-from distutils.version import LooseVersion
+from packaging.version import Version, InvalidVersion
+from pathlib import Path
+from urllib.parse import quote, urlencode
+from html import escape
+from threading import Lock
+
+
+class SecurityHeaders:
+    def process_response(self, req, resp, resource, req_succeeded):
+        resp.set_header("X-Content-Type-Options", "nosniff")
+        resp.set_header("Referrer-Policy", "no-referrer")
+        resp.set_header("X-Frame-Options", "DENY")
 import logging as log
 from wsgiref import simple_server
 from watchdog.observers.polling import PollingObserver
@@ -12,7 +24,10 @@ import vsc
 class VSCUpdater(object):
 
     def on_get(self, req, resp, platform, buildquality, commitid):
-        updatedir = os.path.join(vsc.ARTIFACTS_INSTALLERS, platform, buildquality)
+        try:
+            updatedir = str(vsc.safe_path(vsc.ARTIFACTS_INSTALLERS, platform, buildquality))
+        except ValueError:
+            raise falcon.HTTPBadRequest(description='Invalid platform or quality')
         if not os.path.exists(updatedir):
             log.warning(f'Update build directory does not exist at {updatedir}. Check sync or sync configuration.')
             resp.status = falcon.HTTP_500
@@ -42,7 +57,7 @@ class VSCUpdater(object):
             resp.status = falcon.HTTP_403
             return
         # Url to get update
-        latest['url'] = vsc.URLROOT + updatepath
+        latest['url'] = vsc.artifact_url(updatepath)
         log.debug(f'Client {platform}, Quality {buildquality}. Providing update {updatepath}')
         resp.status = falcon.HTTP_200
         resp.media = latest
@@ -50,12 +65,18 @@ class VSCUpdater(object):
 class VSCBinaryFromCommitId(object):
 
     def on_get(self, req, resp, commitid, platform, buildquality):
-        updatedir = os.path.join(vsc.ARTIFACTS_INSTALLERS, platform, buildquality)
+        try:
+            updatedir = str(vsc.safe_path(vsc.ARTIFACTS_INSTALLERS, platform, buildquality))
+        except ValueError:
+            raise falcon.HTTPBadRequest(description='Invalid platform or quality')
         if not os.path.exists(updatedir):
             log.warning(f'Update build directory does not exist at {updatedir}. Check sync or sync configuration.')
             resp.status = falcon.HTTP_500
             return
-        jsonpath = os.path.join(updatedir, f'{commitid}.json')
+        try:
+            jsonpath = str(vsc.safe_path(updatedir, f'{commitid}.json'))
+        except ValueError:
+            raise falcon.HTTPBadRequest(description='Invalid commit identifier')
         updatejson = vsc.Utility.load_json(jsonpath)
         if not updatejson:
             resp.content = f'Unable to load {jsonpath}'
@@ -75,7 +96,7 @@ class VSCBinaryFromCommitId(object):
             resp.status = falcon.HTTP_403
             return
         # Url for the client to fetch the update
-        resp.set_header('Location', vsc.URLROOT + updatepath)
+        resp.set_header('Location', vsc.artifact_url(updatepath))
         resp.status = falcon.HTTP_302
 
 class VSCRecommendations(object):
@@ -102,15 +123,24 @@ class VSCMalicious(object):
 
 class VSCGallery(object):
 
-    def __init__(self, interval=3600):
+    def __init__(self, interval=3600, start_worker=True):
+        self._refresh_lock = Lock()
         self.extensions = {}
         self.interval = interval
         self.loaded = Event()
         self.update_worker = Thread(target=self.update_state_loop, args=())
         self.update_worker.daemon = True
-        self.update_worker.start()
+        self.update_state()
+        self.loaded.set()
+        if start_worker:
+            self.update_worker.start()
 
     def update_state(self):
+        with self._refresh_lock:
+            self._load_state()
+
+    def _load_state(self):
+        snapshot = {}
         # Load each extension
         for extensiondir in glob.glob(vsc.ARTIFACTS_EXTENSIONS + '/*/'):
 
@@ -122,50 +152,65 @@ class VSCGallery(object):
                 log.debug(f'Tried to load invalid manifest json {latestpath}')
                 continue
 
-            latest = self.process_loaded_extension(latest, extensiondir)
+            try:
+                latest = self.process_loaded_extension(latest, extensiondir)
+            except (KeyError, TypeError, ValueError):
+                log.warning('Skipping invalid extension metadata: %s', latestpath)
+                continue
 
             if not latest:
                 log.debug(f'Unable to determine latest version {latestpath}')
                 continue
 
-            # Determine the latest version
-            latestversion = latest['versions'][0]
 
             # Find other versions
-            for versionpath in glob.glob(extensiondir + '/*/extension.json'):
+            for versionpath in glob.glob(extensiondir + '/*/extension.json') + glob.glob(extensiondir + '/*/*/extension.json'):
                 #log.info(f'Version path: {versionpath}')
                 vers = vsc.Utility.load_json(versionpath)
                 if not vers:
                     log.debug(f'Tried to load invalid version manifest json {versionpath}')
                     continue
-                vers = self.process_loaded_extension(vers, extensiondir)
-
-                # If this extension.json is actually the latest version, then ignore it
-                if not vers or latestversion == vers['versions'][0]:
+                try:
+                    vers = self.process_loaded_extension(vers, extensiondir)
+                except (KeyError, TypeError, ValueError):
+                    log.warning('Skipping invalid version metadata: %s', versionpath)
                     continue
 
-                # Append this other possible version
-                latest['versions'].append(vers['versions'][0])
+                # If this extension.json is actually the latest version, then ignore it
+                if not vers:
+                    continue
+                # Keep every version/platform pair, not only the first entry.
+                for candidate in vers['versions']:
+                    if not any(v['version'] == candidate['version'] and v.get('targetPlatform') == candidate.get('targetPlatform') for v in latest['versions']):
+                        latest['versions'].append(candidate)
 
             # Sort versions
-            latest['versions'] = sorted(latest['versions'], key=lambda k: LooseVersion(k['version']), reverse=True)
+            try:
+                latest['versions'] = sorted(latest['versions'], key=lambda k: Version(k['version']), reverse=True)
+            except InvalidVersion:
+                log.warning('Skipping invalid extension version: %s', latestpath)
+                continue
 
             # Save the extension in the cache
             name = latest['identity']
-            self.extensions[name] = latest
+            snapshot[name] = latest
+
+        self.extensions = snapshot
 
         log.info(f'Loaded {len(self.extensions)} extensions')
 
     def process_loaded_extension(self, extension, extensiondir):
             name = extension['identity']
+            if not extension.get('versions') or not isinstance(name, str):
+                raise ValueError('Extension needs identity and versions')
 
             # Repoint asset urls
             for version in extension["versions"]:
                 if "targetPlatform" in version:
                     targetPlatform = version['targetPlatform']
-                    asseturi = vsc.URLROOT + os.path.join(extensiondir, version['version'], targetPlatform)
+                    asseturi = vsc.artifact_url(vsc.safe_path(extensiondir, version['version'], targetPlatform))
                 else:
-                    asseturi = vsc.URLROOT + os.path.join(extensiondir, version['version'])
+                    asseturi = vsc.artifact_url(vsc.safe_path(extensiondir, version['version']))
 
                 version['assetUri'] = asseturi
                 version['fallbackAssetUri'] = asseturi
@@ -196,39 +241,29 @@ class VSCGallery(object):
             time.sleep(self.interval)
 
     def on_post(self, req, resp):
-        if 'filters' not in req.media or 'criteria' not in req.media['filters'][0] or 'flags' not in req.media:
-            log.warning(f'Post missing critical components. Raw post {req.media}')
-            resp.status = falcon.HTTP_404
-            return
-
-        sortby = vsc.SortBy.NoneOrRelevance
-        sortorder = vsc.SortOrder.Default
-        #flags = vsc.QueryFlags.NoneDefined
-        criteria = req.media['filters'][0]['criteria']
-
-        if req.media['filters'][0].get('sortOrder'):
-            sortorder = vsc.SortOrder(req.media['filters'][0]['sortOrder'])
-
-        if req.media['filters'][0].get('sortBy'):
-            sortby = vsc.SortBy(req.media['filters'][0]['sortBy'])
-
-        # Flags can be used for version management, but it appears the client doesn't care what's sent back
-        #if req.media['flags']:
-        #    flags = vsc.QueryFlags(req.media['flags'])
-
-        # Unused
-        #pagenumber = req.media['filters'][0].get('pageNumber', 0)
-        #pagesize = req.media['filters'][0].get('pageSize', 500)
-        #log.info(f'CRITERIA {criteria}, flags {flags}, sortby {sortby}, sortorder {sortorder}')
-
-        # If no order specified, default to InstallCount (e.g. popular first)
+        body = req.media
+        if not isinstance(body, dict) or not isinstance(body.get("filters"), list) or not body["filters"]:
+            raise falcon.HTTPBadRequest(description="Expected a non-empty filters array")
+        query = body["filters"][0]
+        if not isinstance(query, dict) or not isinstance(query.get("criteria"), list):
+            raise falcon.HTTPBadRequest(description="Expected filter criteria")
+        try:
+            sortby = vsc.SortBy(query.get("sortBy", 0))
+            sortorder = vsc.SortOrder(query.get("sortOrder", 0))
+            page = int(query.get("pageNumber", 1))
+            size = int(query.get("pageSize", 500))
+            if page < 1 or not 1 <= size <= 1000:
+                raise ValueError()
+            if any(not isinstance(c, dict) or not isinstance(c.get("filterType"), int) or not isinstance(c.get("value"), str) for c in query["criteria"]):
+                raise ValueError()
+        except (ValueError, TypeError):
+            raise falcon.HTTPBadRequest(description="Invalid sort, paging or criteria")
         if sortby == vsc.SortBy.NoneOrRelevance:
-            sortby = vsc.SortBy.InstallCount
-            sortorder = vsc.SortOrder.Descending
-
-        result = self._apply_criteria(criteria)
+            sortby, sortorder = vsc.SortBy.InstallCount, vsc.SortOrder.Descending
+        result = self._apply_criteria(query["criteria"])
         self._sort(result, sortby, sortorder)
-        resp.media = self._build_response(result)
+        total = len(result)
+        resp.media = self._build_response(result[(page - 1) * size:page * size], total)
         resp.status = falcon.HTTP_200
 
     def _sort(self, result, sortby, sortorder):
@@ -238,7 +273,6 @@ class VSCGallery(object):
             rev = True
 
         if sortby == vsc.SortBy.PublisherName:
-            rev = not rev
             result.sort(key=lambda k: k['publisher']['publisherName'], reverse=rev)
 
         elif sortby == vsc.SortBy.InstallCount:
@@ -257,73 +291,31 @@ class VSCGallery(object):
             result.sort(key=lambda k: vsc.Utility.from_json_datetime(k['publishedDate']), reverse=rev)
 
         else:
-            rev = not rev
-            result.sort(key=lambda k: k['displayName'], reverse=rev)
+            result.sort(key=lambda k: k.get('displayName', k['identity']).lower(), reverse=rev)
 
     def _apply_criteria(self, criteria):
-        # `self.extensions` may be modified by the update thread while this
-        # function is executing so we need to operate on a copy
-        extensions = self.extensions.copy()
-        result = []
+        extensions = list(self.extensions.values())
+        names = [c["value"].lower() for c in criteria if c.get("filterType") == vsc.FilterType.ExtensionName]
+        ids = [c["value"].lower() for c in criteria if c.get("filterType") == vsc.FilterType.ExtensionId]
+        # Multiple requested names/IDs are alternatives. Other filter kinds intersect.
+        if names or ids:
+            extensions = [e for e in extensions if e["identity"].lower() in names or e.get("extensionId", "").lower() in ids]
+        for c in criteria:
+            value = c.get("value", "").lower()
+            kind = c.get("filterType")
+            if kind == vsc.FilterType.SearchText and value:
+                extensions = [e for e in extensions if any(value in str(e.get(k, "")).lower() for k in ("identity", "displayName", "shortDescription"))]
+            elif kind == vsc.FilterType.Tag:
+                extensions = [e for e in extensions if value in [t.lower() for t in e.get("tags", [])]]
+            elif kind == vsc.FilterType.Category:
+                extensions = [e for e in extensions if value in [t.lower() for t in e.get("categories", [])]]
+            elif kind == vsc.FilterType.ExcludeWithFlags:
+                # The cached metadata uses textual flags (for example "validated, public").
+                if value.isdigit() and int(value) & int(vsc.QueryFlags.Unpublished):
+                    extensions = [e for e in extensions if "unpublished" not in str(e.get("flags", "")).lower()]
+        return extensions
 
-        for crit in criteria:
-            if 'filterType' not in crit or 'value' not in crit:
-                continue
-            ft = vsc.FilterType(crit['filterType'])
-            val = crit['value'].lower()
-
-            if ft == vsc.FilterType.Tag:
-                # ?? Tags
-                log.info(f"Not implemented filter type {ft} for {val}")
-                continue
-
-            elif ft == vsc.FilterType.ExtensionId:
-                for name in extensions:
-                    if val == extensions[name]['extensionId']:
-                        result.append(extensions[name])
-
-            elif ft == vsc.FilterType.Category:
-                log.info(f"Not implemented filter type {ft} for {val}")
-                continue
-
-            elif ft == vsc.FilterType.ExtensionName:
-                for name in extensions:
-                    if name.lower() == val:
-                        result.append(extensions[name])
-
-            elif ft == vsc.FilterType.Target:
-                # Ignore the product, typically Visual Studio Code. If it's custom, then let it connect here
-                continue
-
-            elif ft == vsc.FilterType.Featured:
-                log.info(f"Not implemented filter type {ft} for {val}")
-                continue
-
-            elif ft == vsc.FilterType.SearchText:
-                for name in extensions:
-                    # Search in extension name, display name and short description
-                    if val in name.lower():
-                        result.append(extensions[name])
-                    elif 'displayName' in extensions[name] and val in extensions[name]['displayName'].lower():
-                        result.append(extensions[name])
-                    elif 'shortDescription' in extensions[name] and val in extensions[name]['shortDescription'].lower():
-                        result.append(extensions[name])
-
-            elif ft == vsc.FilterType.ExcludeWithFlags:
-                # Typically this ignores Unpublished Flag (4096) extensions
-                continue
-
-            else:
-                log.warning(f"Undefined filter type {crit}")
-
-        # Handle popular / recommended
-        if len(result) <= 0 and len(criteria) <= 2:
-            log.info(f'Search criteria {criteria}')
-            result = [ext for ext in extensions.values() if 'recommended' in ext and ext['recommended']]
-
-        return result
-
-    def _build_response(self, resultingExtensions):
+    def _build_response(self, resultingExtensions, total=None):
         result = {
             'results': [
                 {
@@ -335,7 +327,7 @@ class VSCGallery(object):
                             'metadataItems': [
                                 {
                                     'name': 'TotalCount',
-                                    'count': len(resultingExtensions)
+                                    'count': len(resultingExtensions) if total is None else total
                                 }
                             ]
                         }
@@ -345,6 +337,37 @@ class VSCGallery(object):
         }
         return result
 
+class VSCMarketplaceItem:
+    def __init__(self, gallery):
+        self.gallery = gallery
+
+    def on_get(self, req, resp):
+        import re
+        identity = req.get_param("itemName", required=True)
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*\.[A-Za-z0-9][A-Za-z0-9_-]*", identity):
+            raise falcon.HTTPBadRequest(description="Expected publisher.extension")
+        canonical = next((key for key in self.gallery.extensions if key.lower() == identity.lower()), None)
+        if canonical is None:
+            raise falcon.HTTPNotFound(description="Extension is not mirrored")
+        resp.status = falcon.HTTP_302
+        resp.set_header("Location", "/extensions/" + quote(canonical, safe=""))
+
+
+class VSCUIAsset:
+    def on_get(self, req, resp, filename):
+        if filename not in {"style.css", "app.js"}:
+            raise falcon.HTTPNotFound()
+        path = vsc.CONTENT / filename
+        resp.content_type = "text/css" if filename.endswith(".css") else "application/javascript"
+        resp.text = path.read_text()
+
+
+class VSCExtensionPage:
+    def on_get(self, req, resp, identity=None, quality=None):
+        resp.content_type = "text/html"
+        resp.text = (vsc.CONTENT / "index.html").read_text()
+
+
 class VSCIndex(object):
 
     def __init__(self):
@@ -352,7 +375,7 @@ class VSCIndex(object):
 
     def on_get(self, req, resp):
         resp.content_type = 'text/html'
-        with open('/opt/vscoffline/vscgallery/content/index.html', 'r') as f:
+        with open(vsc.CONTENT / 'index.html', 'r') as f:
             resp.text = f.read()
         resp.status = falcon.HTTP_200
 
@@ -362,27 +385,100 @@ class VSCDirectoryBrowse(object):
         self.root = root
 
     def on_get(self, req, resp):
-        requested_path = os.path.join(self.root, req.get_param('path', required=True))
-        # Check the path requested
-        if os.path.commonprefix((os.path.realpath(requested_path), self.root)) != self.root:
-            resp.status = falcon.HTTP_403
-            return
-        resp.content_type = 'text/html'
-        # Load template and replace variables
-        with open('/opt/vscoffline/vscgallery/content/browse.html', 'r') as f:
-            resp.text = f.read()
-        resp.text = resp.text.replace('{PATH}', requested_path)
-        resp.text = resp.text.replace('{CONTENT}', self.simple_dir_browse_response(requested_path))
-        resp.status = falcon.HTTP_200
+        try:
+            requested = vsc.safe_path(self.root, req.get_param("path") or "")
+        except ValueError:
+            raise falcon.HTTPForbidden(description="Path outside artifacts")
+        if not requested.is_dir():
+            raise falcon.HTTPNotFound()
+        resp.content_type = "text/html"
+        template = (vsc.CONTENT / "browse.html").read_text()
+        relative = requested.relative_to(Path(self.root).resolve()).as_posix()
+        resp.text = template.replace("{PATH}", escape(relative)).replace("{CONTENT}", self.simple_dir_browse_response(requested))
 
     def simple_dir_browse_response(self, path):
-        response = ''
-        for item in vsc.Utility.folders_in_folder(path):
-            response += f'd <a href="/browse?path={os.path.join(path, item)}">{item}</a><br />'
-        for item in vsc.Utility.files_in_folder(path):
-            if item != path:
-                response += f'f <a href="{os.path.join(self.root, path, item)}">{item}</a><br />'
-        return response
+        root = Path(self.root).resolve()
+        rows = []
+        for item in sorted(Path(path).iterdir(), key=lambda p: (not p.is_dir(), p.name.lower())):
+            # Hide integrity receipts/internal temp files and symlinks leaving the root.
+            if item.name.startswith(".") or item.is_symlink():
+                continue
+            relative = item.relative_to(root).as_posix()
+            href = "/browse?" + urlencode({"path": relative}) if item.is_dir() else "/artifacts/" + quote(relative, safe="/")
+            rows.append('<a class="file-row" href="' + escape(href, quote=True) + '"><span>' + ("Folder" if item.is_dir() else "File") + '</span><strong>' + escape(item.name) + '</strong></a>')
+        return "\n".join(rows) or '<p class="empty">This folder is empty.</p>'
+
+
+class VSCLatestExtension:
+    def __init__(self, gallery):
+        self.gallery = gallery
+
+    def on_get(self, req, resp, publisher, name):
+        extension = self.gallery.extensions.get((publisher + "." + name).lower())
+        if extension is None:
+            extension = next((e for key, e in self.gallery.extensions.items() if key.lower() == (publisher + "." + name).lower()), None)
+        if extension is None:
+            raise falcon.HTTPNotFound()
+        resp.media = extension
+
+
+class VSCStatistics:
+    def on_post(self, req, resp, publisher, name, version):
+        # Offline installs must not report usage upstream. Accept the protocol call without storing it.
+        resp.status = falcon.HTTP_204
+
+
+class VSCCatalog:
+    def __init__(self, gallery):
+        self.gallery = gallery
+
+    def on_get(self, req, resp):
+        binaries = []
+        root = Path(vsc.ARTIFACTS_INSTALLERS)
+        for platform_dir in sorted(root.iterdir()):
+            if not platform_dir.is_dir() or platform_dir.is_symlink():
+                continue
+            for quality_dir in sorted(platform_dir.iterdir()):
+                if not quality_dir.is_dir() or quality_dir.is_symlink():
+                    continue
+                versions = []
+                seen = set()
+                for metadata_path in [quality_dir / "latest.json"] + sorted(quality_dir.glob("*.json")):
+                    if metadata_path.is_symlink():
+                        continue
+                    metadata = vsc.Utility.load_json(metadata_path)
+                    if not isinstance(metadata, dict) or not metadata.get("version") or metadata["version"] in seen:
+                        continue
+                    seen.add(metadata["version"])
+                    payload = vsc.Utility.first_file(str(quality_dir), "vscode-" + str(metadata.get("name", "")) + ".*")
+                    if payload:
+                        try:
+                            metadata["downloadUrl"] = vsc.artifact_url(payload)
+                            metadata["sizeBytes"] = Path(payload).stat().st_size
+                        except (ValueError, OSError):
+                            pass
+                    versions.append(metadata)
+                if versions:
+                    binaries.append({"identity": platform_dir.name, "quality": quality_dir.name, "versions": versions})
+        resp.media = {"extensions": list(self.gallery.extensions.values()), "binaries": binaries, "signatureVerification": "Performed by VS Code, not this mirror"}
+
+
+class VSCArtifact:
+    def on_get(self, req, resp, asset_path):
+        try:
+            if any(part.startswith(".") for part in Path(asset_path).parts):
+                raise ValueError("Internal file")
+            path = vsc.safe_path(vsc.ARTIFACTS, asset_path)
+        except ValueError:
+            raise falcon.HTTPForbidden()
+        if not path.is_file():
+            raise falcon.HTTPNotFound()
+        resp.content_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+        resp.set_stream(path.open("rb"), path.stat().st_size)
+        resp.set_header("X-Content-Type-Options", "nosniff")
+        # Untrusted extension HTML/SVG is downloadable, not executable in the gallery origin.
+        resp.set_header("Content-Security-Policy", "sandbox; default-src 'none'")
+
 
 class ArtifactChangedHandler(FileSystemEventHandler):
 
@@ -395,36 +491,34 @@ class ArtifactChangedHandler(FileSystemEventHandler):
             self.gallery.update_state()
 
 
-if not os.path.exists(vsc.ARTIFACTS):
-    log.warning(f'Artifact directory missing {vsc.ARTIFACTS}. Cannot proceed.')
-    sys.exit(-1)
+def create_app(start_workers=True):
+    """Create a testable WSGI app. No observer or directories are created on import."""
+    Path(vsc.ARTIFACTS_INSTALLERS).mkdir(parents=True, exist_ok=True)
+    Path(vsc.ARTIFACTS_EXTENSIONS).mkdir(parents=True, exist_ok=True)
+    gallery = VSCGallery(start_worker=start_workers)
+    if start_workers:
+        observer = PollingObserver()
+        observer.schedule(ArtifactChangedHandler(gallery), vsc.ARTIFACTS, recursive=False)
+        observer.start()
+    app = falcon.App(cors_enable=True, middleware=[SecurityHeaders()])
+    app.add_route('/api/update/{platform}/{buildquality}/{commitid}', VSCUpdater())
+    app.add_route('/commit:{commitid}/{platform}/{buildquality}', VSCBinaryFromCommitId())
+    app.add_route('/extensions/workspaceRecommendations.json.gz', VSCRecommendations())
+    app.add_route('/extensions/marketplace.json', VSCMalicious())
+    app.add_route('/_apis/public/gallery/extensionquery', gallery)
+    app.add_route('/_apis/public/gallery/vscode/{publisher}/{name}/latest', VSCLatestExtension(gallery))
+    app.add_route('/_apis/public/gallery/publishers/{publisher}/extensions/{name}/{version}/stats', VSCStatistics())
+    app.add_route('/api/catalog', VSCCatalog(gallery))
+    app.add_route('/items', VSCMarketplaceItem(gallery))
+    app.add_route('/extensions/{identity}', VSCExtensionPage())
+    app.add_route('/binaries', VSCExtensionPage())
+    app.add_route('/binaries/{identity}/{quality}', VSCExtensionPage())
+    app.add_route('/ui/{filename}', VSCUIAsset())
+    app.add_route('/browse', VSCDirectoryBrowse(vsc.ARTIFACTS))
+    app.add_route('/', VSCIndex())
+    app.add_route('/artifacts/{asset_path:path}', VSCArtifact())
+    return app
 
-if not os.path.exists(vsc.ARTIFACTS_INSTALLERS):
-    log.warning(f'Installer artifact directory missing {vsc.ARTIFACTS_INSTALLERS}. Cannot proceed.')
-    sys.exit(-1)
-
-if not os.path.exists(vsc.ARTIFACTS_EXTENSIONS):
-    log.warning(f'Extensions artifact directory missing {vsc.ARTIFACTS_EXTENSIONS}. Cannot proceed.')
-    sys.exit(-1)
-
-vscgallery = VSCGallery()
-
-log.debug('Waiting for gallery cache to load')
-#vscgallery.loaded.wait()
-
-observer = PollingObserver()
-observer.schedule(ArtifactChangedHandler(vscgallery), '/artifacts/', recursive=False)
-observer.start()
-
-application = falcon.App(cors_enable=True)
-application.add_route('/api/update/{platform}/{buildquality}/{commitid}', VSCUpdater())
-application.add_route('/commit:{commitid}/{platform}/{buildquality}', VSCBinaryFromCommitId())
-application.add_route('/extensions/workspaceRecommendations.json.gz', VSCRecommendations()) # Why no compress??
-application.add_route('/extensions/marketplace.json', VSCMalicious())
-application.add_route('/_apis/public/gallery/extensionquery', vscgallery)
-application.add_route('/browse', VSCDirectoryBrowse(vsc.ARTIFACTS))
-application.add_route('/', VSCIndex())
-application.add_static_route('/artifacts/', '/artifacts/')
 
 if __name__ == '__main__':
     log.basicConfig(
@@ -432,5 +526,5 @@ if __name__ == '__main__':
         datefmt='%y%m%d %H:%M:%S',
         level=log.DEBUG
     )
-    httpd = simple_server.make_server('0.0.0.0', 5000, application)
+    httpd = simple_server.make_server('0.0.0.0', 5000, create_app())
     httpd.serve_forever()

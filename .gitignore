@@ -5,3 +5,5 @@ venv/
 .vscode/*
 .env
 .venv
+# Organization TLS credentials
+tls/

@@ -3,3 +3,4 @@ falcon
 gunicorn
 watchdog
 setuptools
+packaging>=24,<27

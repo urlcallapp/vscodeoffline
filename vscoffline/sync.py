@@ -6,6 +6,7 @@ import pathlib
 import tempfile
 import zipfile
 import io
+import re
 import hashlib
 import uuid
 import logging
@@ -274,13 +275,20 @@ class VSCExtensionDefinition(object):
             targetplatform = version.get("targetPlatform", "")
             ver_destination = vsc.safe_path(destination, self.identity, version["version"], targetplatform)
             ver_destination.mkdir(parents=True, exist_ok=True)
+            expected_vsix_hash = next((prop.get("value") for prop in version.get("properties", [])
+                                       if prop.get("key") == "Microsoft.VisualStudio.Services.VsixSha256"), None)
+            if expected_vsix_hash is not None:
+                if not isinstance(expected_vsix_hash, str) or not re.fullmatch(r"[0-9a-fA-F]{64}", expected_vsix_hash):
+                    raise ValueError("Invalid upstream VSIX SHA-256 metadata")
+                expected_vsix_hash = expected_vsix_hash.lower()
             for asset in version["files"]:
+                expected_hash = expected_vsix_hash if asset["assetType"] == "Microsoft.VisualStudio.Services.VSIXPackage" else None
                 url = asset.get("source")
                 if not url:
                     raise ValueError("Missing asset URL")
                 destfile = vsc.safe_path(str(ver_destination), asset["assetType"])
                 receipt = destfile.with_name("." + destfile.name + ".sha256")
-                if destfile.is_file() and receipt.is_file() and vsc.Utility.hash_file_and_check(destfile, receipt.read_text().strip()):
+                if destfile.is_file() and receipt.is_file() and vsc.Utility.hash_file_and_check(destfile, receipt.read_text().strip()) and (not expected_hash or vsc.Utility.hash_file_and_check(destfile, expected_hash)):
                     continue
                 response = session.get(url, allow_redirects=True, timeout=vsc.TIMEOUT)
                 response.raise_for_status()
@@ -294,8 +302,11 @@ class VSCExtensionDefinition(object):
                                 raise ValueError("Signature archive missing .signature.p7s")
                     except zipfile.BadZipFile as error:
                         raise ValueError("Asset is not a ZIP archive: " + asset["assetType"]) from error
+                digest = hashlib.sha256(content).hexdigest()
+                if expected_hash and digest != expected_hash:
+                    raise ValueError("VSIX SHA-256 does not match upstream metadata")
                 atomic_write(destfile, content)
-                atomic_write(receipt, hashlib.sha256(content).hexdigest().encode("ascii"))
+                atomic_write(receipt, digest.encode("ascii"))
         return True
 
     def process_embedded_extensions(self, destination, mp):

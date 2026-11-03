@@ -275,3 +275,40 @@ def test_vscode_marketplace_item_link_to_exact_local_extension(artifacts):
     assert c.simulate_get('/items',params={'itemName':'missing.tool'}).status_code==404
     assert c.simulate_get('/items',params={'itemName':'https://external.invalid'}).status_code==400
     assert c.simulate_get('/items').status_code==400
+
+def test_upstream_vsix_hash_checked_before_publication(artifacts):
+    import hashlib
+    vsix=zipbytes();ext=downloadable()
+    ext.versions[0]['properties']=[{'key':'Microsoft.VisualStudio.Services.VsixSha256','value':hashlib.sha256(vsix).hexdigest().upper()}]
+    session=Mock();session.get.side_effect=[response(vsix),response(zipbytes('.signature.p7s'))]
+    assert ext.download_assets(artifacts/'extensions',session)
+
+
+def test_upstream_hash_mismatch_keeps_prior_bytes(artifacts):
+    ext=downloadable();ext.versions[0]['properties']=[{'key':'Microsoft.VisualStudio.Services.VsixSha256','value':'0'*64}]
+    folder=artifacts/'extensions/sample.tool/1.0.0';folder.mkdir(parents=True)
+    (folder/VSIX).write_bytes(b'prior fixture')
+    session=Mock();session.get.return_value=response(zipbytes())
+    with pytest.raises(ValueError,match='does not match'):ext.download_assets(artifacts/'extensions',session)
+    assert (folder/VSIX).read_bytes()==b'prior fixture'
+    assert not (folder/('.'+VSIX+'.sha256')).exists()
+
+
+@pytest.mark.parametrize('checksum',['not-a-hash','',123])
+def test_invalid_upstream_hash_refused(artifacts,checksum):
+    ext=downloadable();ext.versions[0]['properties']=[{'key':'Microsoft.VisualStudio.Services.VsixSha256','value':checksum}]
+    session=Mock()
+    with pytest.raises(ValueError,match='Invalid upstream'):ext.download_assets(artifacts/'extensions',session)
+    session.get.assert_not_called()
+
+
+def test_receipt_does_not_override_upstream_hash(artifacts):
+    import hashlib
+    old=zipbytes('old-fixture');fresh=zipbytes('new-fixture');ext=downloadable()
+    folder=artifacts/'extensions/sample.tool/1.0.0';folder.mkdir(parents=True)
+    (folder/VSIX).write_bytes(old);(folder/('.'+VSIX+'.sha256')).write_text(hashlib.sha256(old).hexdigest())
+    ext.versions[0]['properties']=[{'key':'Microsoft.VisualStudio.Services.VsixSha256','value':hashlib.sha256(fresh).hexdigest()}]
+    session=Mock();session.get.side_effect=[response(fresh),response(zipbytes('.signature.p7s'))]
+    ext.download_assets(artifacts/'extensions',session)
+    assert (folder/VSIX).read_bytes()==fresh
+    assert session.get.call_count==2

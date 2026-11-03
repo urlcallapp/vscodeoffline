@@ -57,6 +57,7 @@ New sync behavior:
 - Reject failed HTTP responses and empty assets rather than cache error pages as packages.
 - Download to a temporary file and atomically replace the destination only on success.
 - Check VSIX/signature ZIP shape, including `.signature.p7s` in signature archives. These are structural checks, not cryptographic verification.
+- Check the Marketplace-advertised VSIX SHA-256 when present, including before cached-file reuse. Reject malformed digest metadata and valid-ZIP mismatches without replacing prior bytes. This is an integrity check against upstream metadata, not independent signature authentication.
 - Store local SHA-256 receipts. Caches without receipts, including downloads created by the old implementation, are fetched again once. This can increase the first sync's bandwidth and duration.
 - Publish extension metadata only after downloads succeed. Follow extension packs and `extensionDependencies` transitively with duplicate/cycle and blocklist guards.
 

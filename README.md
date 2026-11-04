@@ -25,7 +25,21 @@ The existing deployment model redirects VS Code service hostnames to this galler
 - `marketplace.visualstudio.com`
 - `main.vscode-cdn.net`
 
-The online sync system must still resolve the real public services, not its offline mirror. Client distribution, build configuration, and VS Code version can change which hosts are needed. Confirm the actual requests in the target client's Developer Tools/Shared logs. Do not infer VSCodium, Code OSS, VS Code Desktop, VS Code Server, and Web are interchangeable.
+These three are the hosts this gallery impersonates: update metadata and installer bytes, the gallery query and item APIs, and recommendations/extension-control data. The gallery rewrites the asset and download URLs it serves to `PUBLIC_URL`, so clients following those URLs stay on hosts you control, provided `PUBLIC_URL` itself resolves on the offline network with a trusted certificate. Microsoft's [network documentation](https://code.visualstudio.com/docs/setup/network) lists `*.vscode-cdn.net` as a wildcard; the mirror impersonates only `main.vscode-cdn.net`. Other subdomains, such as the per-UUID webview content host referenced by `webviewContentExternalBaseUrlTemplate`, are not mirrored. Extensions can also fetch their own runtime resources (language servers, toolchains, data downloads) from other hosts. Which additional hosts matter is feature-dependent: assess the client build and extensions in use, and do not point unrecognized hosts at this service.
+
+The online sync system must still resolve the real public services, not its offline mirror. Checked against live Microsoft services on 2026-11-04, the sync contacts:
+
+- `marketplace.visualstudio.com` - extension gallery queries
+- `*.gallerycdn.vsassets.io` and `*.gallery.vsassets.io` - extension asset downloads (primary and fallback hosts returned in gallery metadata)
+- `update.code.visualstudio.com` - installer update metadata
+- `vscode.download.prss.microsoft.com` - actual VS Code binary downloads (the update API's redirect target)
+- `main.vscode-cdn.net` - recommendations and the malicious-extension list
+
+Old releases pointing at the retired `az764295.vo.msecnd.net` CDN are skipped.
+
+Other hostnames in Microsoft's list belong to features this project does not mirror: Settings Sync (`vscode-sync.trafficmanager.net`, `vscode-sync-insiders.trafficmanager.net`), the `vscode.dev` sign-in redirect, web extensions (`*.vscode-unpkg.net`), experiments (`default.exp-tas.com`), badges (`vsmarketplacebadges.dev`), GitHub raw content, documentation, and link forwarding. None of these are served by this gallery, so do not redirect them to it. Handle them per feature: disable what your deployment does not need, and prepare separate offline alternatives for what it does. `download.visualstudio.microsoft.com`, for example, is fetched directly by some extensions (C++/C# dependencies) and needs its own offline preparation if those extensions are used.
+
+Client distribution, build configuration, and VS Code version can change which hosts are needed. Confirm the actual requests in the target client's Developer Tools/Shared logs. Do not infer VSCodium, Code OSS, VS Code Desktop, VS Code Server, and Web are interchangeable.
 
 Provide your organization's trusted certificate/key as `tls/tls.crt` and `tls/tls.key`, mounted read-only at `/run/tls`. Include the required service hostnames in its SANs. Deploy trust through your organization's approved process. **Do not trust or reuse the historical bundled certificate chain/key**: the leaf expired November 20, 2025, the intermediate expired May 20, 2026, and the leaf lacks `main.vscode-cdn.net`. The gallery no longer uses it by default. No domain, DNS, trust-store, or client settings are changed by this project.
 
@@ -115,7 +129,7 @@ mkdir -p ./artifacts
 ARTIFACTS="$PWD/artifacts" PUBLIC_URL=http://127.0.0.1:5000 python vscoffline/server.py
 ```
 
-For production use Gunicorn's `server:create_app()` factory from `vscoffline/`. Importing the module no longer starts background watchers or exits if the default artifact directory is absent. `create_app(start_workers=False)` supports isolated protocol tests. CI additionally builds both images and smoke-tests the gallery container without TLS. The container smoke is defined but has not yet run on this unpublished branch.
+For production use Gunicorn's `server:create_app()` factory from `vscoffline/`. Importing the module no longer starts background watchers or exits if the default artifact directory is absent. `create_app(start_workers=False)` supports isolated protocol tests. CI additionally builds both images and smoke-tests the gallery container without TLS; that container smoke passes on the merged main branch.
 
 ## Source references
 
@@ -123,6 +137,7 @@ For production use Gunicorn's `server:create_app()` factory from `vscoffline/`. 
 - [VS Code 1.144.0 gallery service](https://raw.githubusercontent.com/microsoft/vscode/1.144.0/src/vs/platform/extensionManagement/common/extensionGalleryService.ts)
 - [VS Code 1.144.0 gallery resources](https://raw.githubusercontent.com/microsoft/vscode/1.144.0/src/vs/platform/extensionManagement/common/extensionGalleryManifestService.ts)
 - [VS Code 1.144.0 download/verification flow](https://raw.githubusercontent.com/microsoft/vscode/1.144.0/src/vs/platform/extensionManagement/node/extensionDownloader.ts)
+- [Microsoft network hostnames](https://code.visualstudio.com/docs/setup/network). The DNS lists above were checked against it and against live Microsoft services on 2026-11-04.
 - [Microsoft extension security](https://code.visualstudio.com/docs/configure/extensions/extension-runtime-security)
 - [Microsoft enterprise extension guidance](https://code.visualstudio.com/docs/enterprise/extensions). Its official private marketplace requires enterprise account access and is not substituted for this project.
 

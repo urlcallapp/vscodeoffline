@@ -19,27 +19,52 @@ The fork builds local images (`vscodeoffline-sync:local`, `vscodeoffline-gallery
 
 ## Production DNS and TLS
 
-The existing deployment model redirects VS Code service hostnames to this gallery:
+The deployment model redirects VS Code service hostnames to this gallery. There are two separate host lists: the few hosts redirected to the gallery on the offline network, and the real Microsoft services the online sync host must reach. They must not be mixed up.
 
-- `update.code.visualstudio.com`
-- `marketplace.visualstudio.com`
-- `main.vscode-cdn.net`
+### Hosts redirected to the gallery (offline network)
 
-These three are the hosts this gallery impersonates: update metadata and installer bytes, the gallery query and item APIs, and recommendations/extension-control data. The gallery rewrites the asset and download URLs it serves to `PUBLIC_URL`, so clients following those URLs stay on hosts you control, provided `PUBLIC_URL` itself resolves on the offline network with a trusted certificate. Microsoft's [network documentation](https://code.visualstudio.com/docs/setup/network) lists `*.vscode-cdn.net` as a wildcard; the mirror impersonates only `main.vscode-cdn.net`. Other subdomains, such as the per-UUID webview content host referenced by `webviewContentExternalBaseUrlTemplate`, are not mirrored. Extensions can also fetch their own runtime resources (language servers, toolchains, data downloads) from other hosts. Which additional hosts matter is feature-dependent: assess the client build and extensions in use, and do not point unrecognized hosts at this service.
+| Host | What the gallery serves for it |
+| --- | --- |
+| `update.code.visualstudio.com` | Update metadata and installer bytes |
+| `marketplace.visualstudio.com` | Gallery query and item APIs |
+| `main.vscode-cdn.net` | Recommendations and extension-control data |
 
-The online sync system must still resolve the real public services, not its offline mirror. Checked against live Microsoft services on 2026-11-04, the sync contacts:
+- The gallery rewrites the asset and download URLs it serves to `PUBLIC_URL`, so clients following those URLs stay on hosts you control, provided `PUBLIC_URL` itself resolves on the offline network with a trusted certificate.
+- Microsoft's [network documentation](https://code.visualstudio.com/docs/setup/network) lists `*.vscode-cdn.net` as a wildcard; the mirror impersonates only `main.vscode-cdn.net`. Other subdomains, such as the per-UUID webview content host referenced by `webviewContentExternalBaseUrlTemplate`, are not mirrored.
+- Extensions can also fetch their own runtime resources (language servers, toolchains, data downloads) from other hosts. Which additional hosts matter is feature-dependent: assess the client build and extensions in use, and do not point unrecognized hosts at this service.
 
-- `marketplace.visualstudio.com` - extension gallery queries
-- `*.gallerycdn.vsassets.io` and `*.gallery.vsassets.io` - extension asset downloads (primary and fallback hosts returned in gallery metadata)
-- `update.code.visualstudio.com` - installer update metadata
-- `vscode.download.prss.microsoft.com` - actual VS Code binary downloads (the update API's redirect target)
-- `main.vscode-cdn.net` - recommendations and the malicious-extension list
+### Online sync egress (Internet-connected host)
+
+The online sync system must still resolve the real public services, not its offline mirror. Checked against live Microsoft services on 2026-11-04:
+
+| Host | Purpose |
+| --- | --- |
+| `marketplace.visualstudio.com` | Extension gallery queries |
+| `*.gallerycdn.vsassets.io` | Extension asset downloads (primary host returned in gallery metadata) |
+| `*.gallery.vsassets.io` | Extension asset downloads (fallback host returned in gallery metadata) |
+| `update.code.visualstudio.com` | Installer update metadata |
+| `vscode.download.prss.microsoft.com` | Actual VS Code binary downloads (the update API's redirect target) |
+| `main.vscode-cdn.net` | Recommendations and the malicious-extension list |
 
 Old releases pointing at the retired `az764295.vo.msecnd.net` CDN are skipped.
 
-Other hostnames in Microsoft's list belong to features this project does not mirror: Settings Sync (`vscode-sync.trafficmanager.net`, `vscode-sync-insiders.trafficmanager.net`), the `vscode.dev` sign-in redirect, web extensions (`*.vscode-unpkg.net`), experiments (`default.exp-tas.com`), badges (`vsmarketplacebadges.dev`), GitHub raw content, documentation, and link forwarding. None of these are served by this gallery, so do not redirect them to it. Handle them per feature: disable what your deployment does not need, and prepare separate offline alternatives for what it does. `download.visualstudio.microsoft.com`, for example, is fetched directly by some extensions (C++/C# dependencies) and needs its own offline preparation if those extensions are used.
+### Microsoft hosts this gallery does not serve
+
+Other hostnames in Microsoft's list belong to features this project does not mirror. None of them are served by this gallery, so do not redirect them to it. Handle them per feature: disable what your deployment does not need, and prepare separate offline alternatives for what it does.
+
+| Feature | Hosts |
+| --- | --- |
+| Settings Sync | `vscode-sync.trafficmanager.net`, `vscode-sync-insiders.trafficmanager.net` |
+| `vscode.dev` sign-in redirect | `vscode.dev` |
+| Web extensions | `*.vscode-unpkg.net` |
+| Experiments | `default.exp-tas.com` |
+| Badges | `vsmarketplacebadges.dev` |
+| Extension-fetched dependencies (for example C++/C# extension dependencies) | `download.visualstudio.microsoft.com` - needs its own offline preparation if those extensions are used |
+| Not product endpoints | GitHub raw content, documentation, link forwarding |
 
 Client distribution, build configuration, and VS Code version can change which hosts are needed. Confirm the actual requests in the target client's Developer Tools/Shared logs. Do not infer VSCodium, Code OSS, VS Code Desktop, VS Code Server, and Web are interchangeable.
+
+### TLS
 
 Provide your organization's trusted certificate/key as `tls/tls.crt` and `tls/tls.key`, mounted read-only at `/run/tls`. Include the required service hostnames in its SANs. Deploy trust through your organization's approved process. **Do not trust or reuse the historical bundled certificate chain/key**: the leaf expired November 20, 2025, the intermediate expired May 20, 2026, and the leaf lacks `main.vscode-cdn.net`. The gallery no longer uses it by default. No domain, DNS, trust-store, or client settings are changed by this project.
 
@@ -75,7 +100,22 @@ New sync behavior:
 - Store local SHA-256 receipts. Caches without receipts, including downloads created by the old implementation, are fetched again once. This can increase the first sync's bandwidth and duration.
 - Publish extension metadata only after downloads succeed. Follow extension packs and `extensionDependencies` transitively with duplicate/cycle and blocklist guards.
 
-If installation fails, capture the exact client distribution/version, OS/architecture, extension ID/version/target platform, request URL/status, and Shared log error code. Distinguish TLS trust errors, missing signature archives, mismatched or corrupted bytes, unsupported verifier environments, and certificate-revocation/trust failures. Language servers, runtimes and other resources downloaded by extensions may also require separate offline preparation.
+If installation fails, capture:
+
+- The exact client distribution/version and OS/architecture
+- Extension ID, version and target platform
+- Request URL and status
+- Shared log error code
+
+Distinguish:
+
+- TLS trust errors
+- Missing signature archives
+- Mismatched or corrupted bytes
+- Unsupported verifier environments
+- Certificate-revocation/trust failures
+
+Language servers, runtimes and other resources downloaded by extensions may also require separate offline preparation.
 
 A local integration check mirrored `ms-vscode.hexeditor` 1.11.1, served the original package/signature through the gallery, and verified them with Microsoft's separately installed `@vscode/vsce-sign` 2.1.0: `Success`, verification executed. A modified copy failed with `PackageIntegrityCheckFailed`. The verifier is **not bundled or redistributed** by this MIT project. Its Microsoft license has separate use/distribution limits. This test does not establish successful installation in every air-gapped client or prove that certificate-revocation network access is unnecessary in every environment.
 
@@ -97,7 +137,14 @@ Routes checked against the VS Code **1.144.0** source (October 28, 2026):
 
 `PUBLIC_URL` determines asset paths. Local directories never become public URLs. Exact missing-name searches return no results, not unrelated recommended extensions. Deleted extensions disappear after the gallery reloads the cache. Malformed queries return 400. Directory traversal, outside-root symlinks, raw HTML filenames and hidden download receipts are blocked/escaped; untrusted HTML assets are sandboxed.
 
-Not implemented: Microsoft's authenticated enterprise manifest/sign-in workflow; arbitrary Marketplace APIs; a general-purpose upstream proxy; extension content re-signing. Query version flags are not fully projected: cached versions/platform variants are returned, with compatibility selection left to the client. End-to-end installation on Ron's target VS Code distribution still needs its version/error evidence and testing. No claim of full current-client certification is made.
+Not implemented:
+
+- Microsoft's authenticated enterprise manifest/sign-in workflow
+- Arbitrary Marketplace APIs
+- A general-purpose upstream proxy
+- Extension content re-signing
+
+Query version flags are not fully projected: cached versions/platform variants are returned, with compatibility selection left to the client. End-to-end installation on Ron's target VS Code distribution still needs its version/error evidence and testing. No claim of full current-client certification is made.
 
 ## Sync options
 
@@ -145,7 +192,12 @@ Check publisher/Marketplace terms before redistribution. This fork's MIT license
 
 ## Artifact pages and VS Code's Marketplace link
 
-The compact catalog separates **Extensions** and **Binaries**. Extension pages expose the original mirrored icon, version/platform choices, readme, changelog, manifest, license, asset links and full metadata. Binaries are indexed from `installers/<platform>/<quality>/*.json`; each platform/channel has a detail page with actual version, architecture, commit, hashes and download metadata. Only existing mirrored metadata is shown. Markdown/manifest/license artifacts are displayed as safe text, not executed as HTML.
+The compact catalog separates **Extensions** and **Binaries**:
+
+- Extension pages expose the original mirrored icon, version/platform choices, readme, changelog, manifest, license, asset links and full metadata.
+- Binaries are indexed from `installers/<platform>/<quality>/*.json`; each platform/channel has a detail page with actual version, architecture, commit, hashes and download metadata.
+
+Only existing mirrored metadata is shown. Markdown/manifest/license artifacts are displayed as safe text, not executed as HTML.
 
 VS Code 1.144.0 constructs its Marketplace detail URL from the client product/gallery `itemUrl` plus `?itemName={publisher}.{name}`. The server supports:
 
@@ -153,7 +205,10 @@ VS Code 1.144.0 constructs its Marketplace detail URL from the client product/ga
 GET /items?itemName=publisher.extension
 ```
 
-It redirects to that exact local `/extensions/publisher.extension` page, case-insensitively matching the mirrored canonical ID. Unknown extensions return 404; malformed IDs return 400. There is no redirect to the public Marketplace or a generic search page. The optional review query is accepted, but this mirror has no review-writing service.
+- It redirects to that exact local `/extensions/publisher.extension` page, case-insensitively matching the mirrored canonical ID.
+- Unknown extensions return 404; malformed IDs return 400.
+- There is no redirect to the public Marketplace or a generic search page.
+- The optional review query is accepted, but this mirror has no review-writing service.
 
 In the inherited DNS-mirror deployment, a standard client's `https://marketplace.visualstudio.com/items?itemName=...` URL must resolve to this service with correctly trusted matching TLS. If the client distribution exposes its own supported gallery configuration, its item URL must point to this service's `/items`; do not assume `PUBLIC_URL` alone changes the client-generated Marketplace link. This fork does not edit/repackage VS Code or silently alter client configuration. Microsoft's enterprise Private Marketplace policy is a different authenticated workflow, not a promise that arbitrary custom item URLs are a supported user setting in branded VS Code.
 

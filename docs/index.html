@@ -194,13 +194,6 @@
         color: var(--ink);
         font-weight: 600;
       }
-      .caption a {
-        display: inline-flex;
-        align-items: center;
-        min-height: 44px;
-        margin-top: -10px;
-        white-space: nowrap;
-      }
       .section {
         padding: 36px 0;
         border-top: 1px solid var(--line);
@@ -418,9 +411,6 @@
           flex-wrap: wrap;
           gap: 4px;
         }
-        .caption a {
-          margin-top: 0;
-        }
         h2 {
           font-size: 21px;
         }
@@ -510,6 +500,7 @@
           <div class="video-frame">
             <video
               controls
+              controlsList="nodownload"
               playsinline
               preload="metadata"
               poster="poster.jpg"
@@ -525,8 +516,8 @@
                 default
               />
               <p>
-                Your browser does not support embedded video. Use the download
-                link below.
+                Your browser does not support embedded video. Read the
+                transcript below instead.
               </p>
             </video>
           </div>
@@ -534,8 +525,6 @@
             <span
               ><strong>The 15-second tour</strong><br />English narration ·
               captions · music</span
-            ><a href="demo.mp4" download
-              >Download video <span aria-hidden="true">&nbsp;↓</span></a
             >
           </figcaption>
         </figure>
@@ -588,15 +577,8 @@
             packages locally. Search, choose a version, and download the VSIX.
             Your extension catalog, available locally.
           </p>
-          <h3>What the video shows</h3>
           <p>
-            The demo opens with "Your VS Code extensions, on your own network",
-            shows an extension catalog with cards and local search, and closes
-            with "Your extension catalog. Available locally."
-          </p>
-          <p>
-            Background music accompanies the narration. Use the player controls
-            to pause, change volume, or turn captions on and off.
+            Background music accompanies the narration.
           </p>
         </details>
       </div>

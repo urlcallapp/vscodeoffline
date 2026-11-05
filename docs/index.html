@@ -60,6 +60,18 @@
         width: min(1160px, 100% - 64px);
         margin-inline: auto;
       }
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        clip-path: inset(50%);
+        white-space: nowrap;
+        border: 0;
+      }
       .skip {
         position: absolute;
         top: 12px;
@@ -505,7 +517,7 @@
               preload="metadata"
               poster="poster.jpg"
               aria-label="VS Code offline gallery demo"
-              aria-describedby="video-caption"
+              aria-describedby="video-caption video-desc"
             >
               <source src="demo.mp4" type="video/mp4" />
               <track
@@ -525,7 +537,7 @@
             <span
               ><strong>The 15-second tour</strong><br />English narration ·
               captions · music</span
-            >
+            ><span class="sr-only" id="video-desc">The demo opens with "Your VS Code extensions, on your own network", shows an extension catalog with cards and local search, and closes with "Your extension catalog. Available locally."</span>
           </figcaption>
         </figure>
       </section>

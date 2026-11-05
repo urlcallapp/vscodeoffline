@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="Mirror Marketplace packages locally. Browse your catalog, choose a version, and download the VSIX from your own network."
+      content="The VS Code extension gallery that runs entirely on your network. Sync once, then browse, pick a version, and install - no Internet required."
     />
     <meta name="theme-color" content="#0c1220" />
     <title>VS Code offline | vscodeoffline</title>
@@ -17,7 +17,7 @@
         --ink: #f4f7fc;
         --muted: #b8c5d8;
         --line: #34445e;
-        --accent: #a4efd8;
+        --accent: #57c9f2;
         --focus: #ffdb83;
       }
       * {
@@ -108,7 +108,7 @@
         place-items: center;
         width: 38px;
         height: 38px;
-        border: 1px solid #658b94;
+        border: 1px solid #2e6484;
         border-radius: 10px;
         color: var(--accent);
         font-family: monospace;
@@ -264,7 +264,6 @@
       }
       .details-grid {
         display: grid;
-        grid-template-columns: 1fr 1fr;
         gap: 28px;
         padding-bottom: 48px;
       }
@@ -282,32 +281,6 @@
         font-size: 14px;
         color: var(--muted);
         margin: 0;
-      }
-      .transcript {
-        border: 1px solid var(--line);
-        border-radius: 12px;
-        padding: 0 24px;
-        align-self: start;
-      }
-      .transcript summary {
-        cursor: pointer;
-        min-height: 64px;
-        display: list-item;
-        list-style-position: inside;
-        font-weight: 600;
-        padding-block: 18px;
-      }
-      .transcript p {
-        font-size: 14px;
-        color: var(--muted);
-        margin: 0 0 18px;
-      }
-      .transcript h3 {
-        font-size: 14px;
-        margin: 0 0 8px;
-      }
-      .transcript[open] {
-        padding-bottom: 8px;
       }
       footer {
         border-top: 1px solid var(--line);
@@ -360,9 +333,6 @@
         }
         .demo {
           width: 100%;
-        }
-        .details-grid {
-          grid-template-columns: 1fr;
         }
         .section-head {
           display: block;
@@ -445,9 +415,6 @@
         .note {
           padding: 20px;
         }
-        .transcript {
-          padding-inline: 20px;
-        }
         .details-grid {
           gap: 20px;
           padding-bottom: 32px;
@@ -470,7 +437,6 @@
         }
         .video-frame,
         .note,
-        .transcript,
         .tag,
         .mark {
           border: 1px solid CanvasText;
@@ -494,18 +460,18 @@
     <main class="wrap" id="main" tabindex="-1">
       <section class="hero" aria-labelledby="title">
         <div>
-          <p class="eyebrow">A local extension gallery</p>
+          <p class="eyebrow">Self-hosted VS Code extension gallery</p>
           <h1 id="title">
             Your VS Code extensions. <span>Inside your network.</span>
           </h1>
           <p class="intro">
-            Mirror Marketplace packages locally. Browse your catalog, choose a
-            version, and download the VSIX from your own network.
+            Sync the Marketplace once, then browse, pick a version, and
+            install - all without touching the Internet.
           </p>
           <div class="tags" aria-label="Project highlights">
-            <span class="tag">Self-hosted</span
-            ><span class="tag">VSIX packages</span
-            ><span class="tag">Local catalog</span>
+            <span class="tag">Air-gapped ready</span
+            ><span class="tag">SHA-256 verified</span
+            ><span class="tag">Signatures kept intact</span>
           </div>
         </div>
         <figure class="demo">
@@ -527,17 +493,11 @@
                 label="English"
                 default
               />
-              <p>
-                Your browser does not support embedded video. Read the
-                transcript below instead.
-              </p>
+              <p>Your browser does not support embedded video.</p>
             </video>
           </div>
           <figcaption class="caption" id="video-caption">
-            <span
-              ><strong>The 15-second tour</strong><br />English narration ·
-              captions · music</span
-            ><span class="sr-only" id="video-desc">The demo opens with "Your VS Code extensions, on your own network", shows an extension catalog with cards and local search, and closes with "Your extension catalog. Available locally."</span>
+            <span><strong>Watch the 15-second tour</strong></span><span class="sr-only" id="video-desc">The demo opens with "Your VS Code extensions, on your own network", shows an extension catalog with cards and local search, and closes with "Your extension catalog. Available locally."</span>
           </figcaption>
         </figure>
       </section>
@@ -564,8 +524,8 @@
           <li>
             <h3>Browse locally</h3>
             <p>
-              Serve the gallery on your network. Search extensions, choose a
-              version, and get the VSIX.
+              Developers search, choose a version, and install straight from
+              the gallery on your network.
             </p>
           </li>
         </ol>
@@ -581,18 +541,6 @@
             yours.
           </p>
         </aside>
-        <details class="transcript">
-          <summary>Read the video transcript</summary>
-          <h3>Narration</h3>
-          <p>
-            Your VS Code extensions on your own network. Mirror Marketplace
-            packages locally. Search, choose a version, and download the VSIX.
-            Your extension catalog, available locally.
-          </p>
-          <p>
-            Background music accompanies the narration.
-          </p>
-        </details>
       </div>
     </main>
     <footer>

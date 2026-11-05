@@ -262,26 +262,6 @@
         margin: 0;
         max-width: 36ch;
       }
-      .details-grid {
-        display: grid;
-        gap: 28px;
-        padding-bottom: 48px;
-      }
-      .note {
-        background: var(--panel);
-        border: 1px solid var(--line);
-        border-radius: 12px;
-        padding: 24px;
-      }
-      .note h2 {
-        font-size: 18px;
-        margin-bottom: 10px;
-      }
-      .note p {
-        font-size: 14px;
-        color: var(--muted);
-        margin: 0;
-      }
       footer {
         border-top: 1px solid var(--line);
         padding: 24px 0 32px;
@@ -412,13 +392,6 @@
         .steps p {
           max-width: none;
         }
-        .note {
-          padding: 20px;
-        }
-        .details-grid {
-          gap: 20px;
-          padding-bottom: 32px;
-        }
         .foot {
           display: block;
         }
@@ -436,7 +409,6 @@
           outline: 3px solid Highlight;
         }
         .video-frame,
-        .note,
         .tag,
         .mark {
           border: 1px solid CanvasText;
@@ -530,18 +502,6 @@
           </li>
         </ol>
       </section>
-      <div class="details-grid">
-        <aside class="note" aria-labelledby="scope">
-          <h2 id="scope">Before you deploy</h2>
-          <p>
-            The online sync component prepares the local catalog. Some
-            extensions have their own runtime dependencies that may need
-            separate offline preparation, and not every extension is guaranteed
-            to behave identically in every target environment - validate against
-            yours.
-          </p>
-        </aside>
-      </div>
     </main>
     <footer>
       <div class="wrap foot">

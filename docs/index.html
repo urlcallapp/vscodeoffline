@@ -1,52 +1,614 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>vscodeoffline - offline VS Code extension gallery</title>
-  <style>
-    :root { color-scheme: dark; }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 24px 16px 48px;
-      background: radial-gradient(1200px 700px at 50% 30%, #16233d 0%, #0d1320 70%);
-      color: #f5f7fa;
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    }
-    main { width: 100%; max-width: 960px; }
-    h1 { font-size: clamp(1.4rem, 3.5vw, 2.2rem); margin: 0 0 6px; letter-spacing: -0.02em; }
-    p.lede { color: #cbd5e1; margin: 0 0 20px; font-size: clamp(0.95rem, 2vw, 1.1rem); }
-    .player {
-      width: 100%;
-      aspect-ratio: 16 / 9;
-      background: #000;
-      border-radius: 14px;
-      overflow: hidden;
-      box-shadow: 0 24px 60px rgba(0,0,0,0.5);
-      border: 1px solid rgba(255,255,255,0.09);
-    }
-    video { width: 100%; height: 100%; display: block; }
-    p.note { color: #94a3b8; font-size: 0.85rem; margin-top: 16px; line-height: 1.5; }
-  </style>
-</head>
-<body>
-  <main>
-    <h1>vscodeoffline - offline VS Code extension gallery</h1>
-    <p class="lede">A 15-second tour: browse a local mirror of the Marketplace, pick a version, download the VSIX - all inside your own network.</p>
-    <div class="player">
-      <video controls preload="metadata" poster="poster.jpg" aria-label="Demo video: offline VS Code extension gallery">
-        <source src="demo.mp4" type="video/mp4" />
-        Sorry, your browser does not support embedded video. You can
-        <a href="demo.mp4">download the demo video</a> instead.
-      </video>
-    </div>
-    <p class="note">Note: the online sync component prepares the local catalog. Some extensions have their own runtime dependencies that may need separate offline preparation, and not every extension is guaranteed to behave identically in every target environment - validate against yours.</p>
-  </main>
-</body>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Mirror Marketplace packages locally. Browse your catalog, choose a version, and download the VSIX from your own network."
+    />
+    <meta name="theme-color" content="#0c1220" />
+    <title>VS Code offline | vscodeoffline</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0c1220;
+        --panel: #131e30;
+        --ink: #f4f7fc;
+        --muted: #b8c5d8;
+        --line: #34445e;
+        --accent: #a4efd8;
+        --focus: #ffdb83;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-padding-top: 24px;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family:
+          system-ui,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+        font-size: 16px;
+        line-height: 1.65;
+      }
+      a {
+        color: var(--accent);
+        text-underline-offset: 4px;
+      }
+      a:hover {
+        text-decoration-thickness: 2px;
+      }
+      a:focus-visible,
+      summary:focus-visible,
+      video:focus-visible {
+        outline: 3px solid var(--focus);
+        outline-offset: 5px;
+        border-radius: 4px;
+      }
+      a,
+      summary {
+        -webkit-tap-highlight-color: transparent;
+      }
+      .wrap {
+        width: min(1160px, 100% - 64px);
+        margin-inline: auto;
+      }
+      .skip {
+        position: absolute;
+        top: 12px;
+        left: 16px;
+        transform: translateY(-180%);
+        z-index: 10;
+        background: var(--focus);
+        color: #0c1220;
+        padding: 10px 18px;
+        font-weight: 700;
+      }
+      .skip:focus {
+        transform: none;
+      }
+      header {
+        border-bottom: 1px solid var(--line);
+      }
+      nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        min-height: 92px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-weight: 650;
+        letter-spacing: -0.02em;
+      }
+      .mark {
+        display: grid;
+        place-items: center;
+        width: 38px;
+        height: 38px;
+        border: 1px solid #658b94;
+        border-radius: 10px;
+        color: var(--accent);
+        font-family: monospace;
+        font-size: 18px;
+        flex: none;
+      }
+      .repo {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        min-height: 44px;
+        font-size: 14px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .hero {
+        padding: 68px 0 46px;
+        display: grid;
+        grid-template-columns: 0.85fr 1.2fr;
+        align-items: center;
+        gap: 48px;
+      }
+      .eyebrow {
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+        color: var(--accent);
+        margin: 0 0 20px;
+      }
+      .hero h1 {
+        font-size: clamp(36px, 4.3vw, 56px);
+        line-height: 1.08;
+        letter-spacing: -0.045em;
+        margin: 0 0 24px;
+        font-weight: 700;
+        max-width: 12ch;
+      }
+      .hero h1 span {
+        display: block;
+        color: var(--accent);
+      }
+      .intro {
+        font-size: 18px;
+        line-height: 1.7;
+        color: var(--muted);
+        max-width: 38ch;
+        margin: 0;
+      }
+      .tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 24px;
+      }
+      .tag {
+        font-size: 12px;
+        color: #d6e1ef;
+        border: 1px solid var(--line);
+        border-radius: 100px;
+        padding: 5px 12px;
+      }
+      .demo {
+        min-width: 0;
+        margin: 0;
+      }
+      .video-frame {
+        background: #000;
+        border: 1px solid #43546e;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 18px 60px #0004;
+      }
+      video {
+        width: 100%;
+        aspect-ratio: 16/9;
+        display: block;
+        object-fit: contain;
+      }
+      video::cue {
+        background: #08101bf2;
+        color: white;
+        font-size: 1em;
+      }
+      .caption {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: start;
+        font-size: 13px;
+        color: var(--muted);
+        padding-top: 14px;
+      }
+      .caption strong {
+        color: var(--ink);
+        font-weight: 600;
+      }
+      .caption a {
+        display: inline-flex;
+        align-items: center;
+        min-height: 44px;
+        margin-top: -10px;
+        white-space: nowrap;
+      }
+      .section {
+        padding: 36px 0;
+        border-top: 1px solid var(--line);
+      }
+      .section-head {
+        display: flex;
+        align-items: baseline;
+        gap: 16px;
+        justify-content: space-between;
+        margin-bottom: 24px;
+      }
+      h2 {
+        font-size: 23px;
+        letter-spacing: -0.025em;
+        margin: 0;
+        font-weight: 650;
+      }
+      .section-head p {
+        font-size: 14px;
+        color: var(--muted);
+        margin: 0;
+      }
+      .steps {
+        list-style: none;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 28px;
+        padding: 0;
+        margin: 0;
+        counter-reset: steps;
+      }
+      .steps li {
+        counter-increment: steps;
+        border-left: 1px solid var(--line);
+        padding-left: 20px;
+      }
+      .steps li::before {
+        content: "0" counter(steps);
+        display: block;
+        font:
+          600 12px/1.5 ui-monospace,
+          monospace;
+        color: var(--accent);
+        margin-bottom: 10px;
+      }
+      .steps h3 {
+        font-size: 17px;
+        line-height: 1.4;
+        margin: 0 0 8px;
+      }
+      .steps p {
+        color: var(--muted);
+        font-size: 15px;
+        margin: 0;
+        max-width: 36ch;
+      }
+      .details-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 28px;
+        padding-bottom: 48px;
+      }
+      .note {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 24px;
+      }
+      .note h2 {
+        font-size: 18px;
+        margin-bottom: 10px;
+      }
+      .note p {
+        font-size: 14px;
+        color: var(--muted);
+        margin: 0;
+      }
+      .transcript {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 0 24px;
+        align-self: start;
+      }
+      .transcript summary {
+        cursor: pointer;
+        min-height: 64px;
+        display: list-item;
+        list-style-position: inside;
+        font-weight: 600;
+        padding-block: 18px;
+      }
+      .transcript p {
+        font-size: 14px;
+        color: var(--muted);
+        margin: 0 0 18px;
+      }
+      .transcript h3 {
+        font-size: 14px;
+        margin: 0 0 8px;
+      }
+      .transcript[open] {
+        padding-bottom: 8px;
+      }
+      footer {
+        border-top: 1px solid var(--line);
+        padding: 24px 0 32px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .foot {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+      .foot p {
+        margin: 0;
+      }
+      .foot a {
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        margin-top: -10px;
+      }
+      @media (min-width: 1500px) {
+        .hero {
+          padding-top: 88px;
+          padding-bottom: 66px;
+        }
+      }
+      @media (max-width: 900px) {
+        .hero {
+          grid-template-columns: 1fr;
+          gap: 32px;
+          padding-top: 40px;
+        }
+        .hero h1 {
+          max-width: 20ch;
+          font-size: 46px;
+        }
+        .intro {
+          max-width: 58ch;
+        }
+        .hero h1 span {
+          display: inline;
+        }
+        .hero h1 span::before {
+          content: " ";
+        }
+        .tags {
+          margin-top: 20px;
+        }
+        .demo {
+          width: 100%;
+        }
+        .details-grid {
+          grid-template-columns: 1fr;
+        }
+        .section-head {
+          display: block;
+        }
+        .section-head p {
+          margin-top: 6px;
+        }
+      }
+      @media (max-width: 560px) {
+        .wrap {
+          width: calc(100% - 36px);
+        }
+        nav {
+          min-height: 80px;
+          gap: 12px;
+        }
+        .brand {
+          font-size: 14px;
+          gap: 9px;
+        }
+        .mark {
+          width: 32px;
+          height: 32px;
+          font-size: 16px;
+        }
+        .repo {
+          font-size: 13px;
+        }
+        .hero {
+          padding-top: 32px;
+          padding-bottom: 32px;
+          gap: 28px;
+        }
+        .eyebrow {
+          font-size: 11px;
+          margin-bottom: 16px;
+        }
+        .hero h1 {
+          font-size: 36px;
+          max-width: 15ch;
+          margin-bottom: 18px;
+        }
+        .intro {
+          font-size: 16px;
+        }
+        .tags {
+          gap: 6px;
+        }
+        .tag {
+          font-size: 11px;
+          padding: 4px 9px;
+        }
+        .video-frame {
+          border-radius: 10px;
+        }
+        .caption {
+          font-size: 12px;
+          flex-wrap: wrap;
+          gap: 4px;
+        }
+        .caption a {
+          margin-top: 0;
+        }
+        h2 {
+          font-size: 21px;
+        }
+        .section {
+          padding: 28px 0;
+        }
+        .steps {
+          grid-template-columns: 1fr;
+          gap: 24px;
+        }
+        .steps li {
+          padding-left: 16px;
+        }
+        .steps li::before {
+          margin-bottom: 6px;
+        }
+        .steps p {
+          max-width: none;
+        }
+        .note {
+          padding: 20px;
+        }
+        .transcript {
+          padding-inline: 20px;
+        }
+        .details-grid {
+          gap: 20px;
+          padding-bottom: 32px;
+        }
+        .foot {
+          display: block;
+        }
+        .foot a {
+          margin-top: 8px;
+        }
+        .section-head {
+          margin-bottom: 20px;
+        }
+      }
+      @media (forced-colors: active) {
+        a:focus-visible,
+        summary:focus-visible,
+        video:focus-visible {
+          outline: 3px solid Highlight;
+        }
+        .video-frame,
+        .note,
+        .transcript,
+        .tag,
+        .mark {
+          border: 1px solid CanvasText;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header>
+      <nav class="wrap" aria-label="Project">
+        <div class="brand">
+          <span class="mark" aria-hidden="true">&lt;/&gt;</span
+          ><span>VS Code offline</span>
+        </div>
+        <a class="repo" href="https://github.com/urlcallapp/vscodeoffline"
+          >GitHub <span aria-hidden="true">↗</span></a
+        >
+      </nav>
+    </header>
+    <main class="wrap" id="main" tabindex="-1">
+      <section class="hero" aria-labelledby="title">
+        <div>
+          <p class="eyebrow">A local extension gallery</p>
+          <h1 id="title">
+            Your VS Code extensions. <span>Inside your network.</span>
+          </h1>
+          <p class="intro">
+            Mirror Marketplace packages locally. Browse your catalog, choose a
+            version, and download the VSIX from your own network.
+          </p>
+          <div class="tags" aria-label="Project highlights">
+            <span class="tag">Self-hosted</span
+            ><span class="tag">VSIX packages</span
+            ><span class="tag">Local catalog</span>
+          </div>
+        </div>
+        <figure class="demo">
+          <div class="video-frame">
+            <video
+              controls
+              playsinline
+              preload="metadata"
+              poster="poster.jpg"
+              aria-label="VS Code offline gallery demo"
+              aria-describedby="video-caption"
+            >
+              <source src="demo.mp4" type="video/mp4" />
+              <track
+                kind="captions"
+                src="captions.en.vtt"
+                srclang="en"
+                label="English"
+                default
+              />
+              <p>
+                Your browser does not support embedded video. Use the download
+                link below.
+              </p>
+            </video>
+          </div>
+          <figcaption class="caption" id="video-caption">
+            <span
+              ><strong>The 15-second tour</strong><br />English narration ·
+              captions · music</span
+            ><a href="demo.mp4" download
+              >Download video <span aria-hidden="true">&nbsp;↓</span></a
+            >
+          </figcaption>
+        </figure>
+      </section>
+      <section class="section" aria-labelledby="workflow">
+        <div class="section-head">
+          <h2 id="workflow">From online sync to local access</h2>
+          <p>Prepare online. Serve on your network.</p>
+        </div>
+        <ol class="steps">
+          <li>
+            <h3>Sync online</h3>
+            <p>
+              Prepare the catalog and extension assets on an Internet-connected
+              system.
+            </p>
+          </li>
+          <li>
+            <h3>Transfer the snapshot</h3>
+            <p>
+              Move the complete, finished artifacts directory into your offline
+              environment.
+            </p>
+          </li>
+          <li>
+            <h3>Browse locally</h3>
+            <p>
+              Serve the gallery on your network. Search extensions, choose a
+              version, and get the VSIX.
+            </p>
+          </li>
+        </ol>
+      </section>
+      <div class="details-grid">
+        <aside class="note" aria-labelledby="scope">
+          <h2 id="scope">Before you deploy</h2>
+          <p>
+            The online sync component prepares the local catalog. Some
+            extensions have their own runtime dependencies that may need
+            separate offline preparation, and not every extension is guaranteed
+            to behave identically in every target environment - validate against
+            yours.
+          </p>
+        </aside>
+        <details class="transcript">
+          <summary>Read the video transcript</summary>
+          <h3>Narration</h3>
+          <p>
+            Your VS Code extensions on your own network. Mirror Marketplace
+            packages locally. Search, choose a version, and download the VSIX.
+            Your extension catalog, available locally.
+          </p>
+          <h3>What the video shows</h3>
+          <p>
+            The demo opens with "Your VS Code extensions, on your own network",
+            shows an extension catalog with cards and local search, and closes
+            with "Your extension catalog. Available locally."
+          </p>
+          <p>
+            Background music accompanies the narration. Use the player controls
+            to pause, change volume, or turn captions on and off.
+          </p>
+        </details>
+      </div>
+    </main>
+    <footer>
+      <div class="wrap foot">
+        <p>vscodeoffline · Self-hosted extension tooling</p>
+        <a href="https://github.com/urlcallapp/vscodeoffline"
+          >Source code &amp; setup guide
+          <span aria-hidden="true">&nbsp;↗</span></a
+        >
+      </div>
+    </footer>
+  </body>
 </html>

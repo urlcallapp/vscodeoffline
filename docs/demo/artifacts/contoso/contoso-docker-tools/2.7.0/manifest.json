@@ -1,0 +1,7 @@
+{
+  "name": "contoso-docker-tools",
+  "publisher": "contoso",
+  "version": "2.7.0",
+  "engines": { "vscode": "^1.85.0" },
+  "main": "./out/extension.js"
+}

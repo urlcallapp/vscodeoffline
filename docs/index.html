@@ -123,6 +123,27 @@
         font-size: 18px;
         flex: none;
       }
+      .demo-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        min-height: 44px;
+        font-size: 14px;
+        font-weight: 600;
+        white-space: nowrap;
+        background: var(--accent);
+        color: #0c1220;
+        text-decoration: none;
+        padding: 0 20px;
+        border-radius: 100px;
+      }
+      .demo-btn:hover {
+        text-decoration: none;
+        filter: brightness(1.1);
+      }
+      .hero-actions {
+        margin: 30px 0 0;
+      }
       .repo {
         display: inline-flex;
         align-items: center;
@@ -453,6 +474,9 @@
             ><span class="tag">SHA-256 verified</span
             ><span class="tag">Signatures kept intact</span>
           </div>
+          <p class="hero-actions">
+            <a class="demo-btn" href="demo/">Open the live demo</a>
+          </p>
         </div>
         <figure class="demo">
           <div class="video-frame">

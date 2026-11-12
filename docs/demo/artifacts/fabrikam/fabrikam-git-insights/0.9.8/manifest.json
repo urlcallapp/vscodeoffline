@@ -1,0 +1,7 @@
+{
+  "name": "fabrikam-git-insights",
+  "publisher": "fabrikam",
+  "version": "0.9.8",
+  "engines": { "vscode": "^1.85.0" },
+  "main": "./out/extension.js"
+}

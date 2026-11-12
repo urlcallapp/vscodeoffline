@@ -1,0 +1,667 @@
+{
+ "extensions": [
+  {
+   "identity": "acme.acme-python-pro",
+   "publisher": {
+    "publisherId": "demo-acme",
+    "publisherName": "acme",
+    "displayName": "Acme",
+    "flags": "verified"
+   },
+   "extensionId": "demo-acme-python-pro",
+   "extensionName": "acme-python-pro",
+   "displayName": "Acme Python Pro",
+   "flags": "validated, public",
+   "shortDescription": "Opinionated Python linting, testing and refactoring for Acme monorepos - fully offline.",
+   "publishedDate": "2025-03-14T10:00:00Z",
+   "releaseDate": "2025-03-14T10:00:00Z",
+   "lastUpdated": "2026-10-28T09:12:44.12Z",
+   "categories": [
+    "Programming Languages"
+   ],
+   "tags": [
+    "python",
+    "linting",
+    "acme"
+   ],
+   "statistics": [
+    {
+     "statisticName": "install",
+     "value": 184023
+    },
+    {
+     "statisticName": "averagerating",
+     "value": 4.61
+    }
+   ],
+   "stats": {
+    "install": 184023,
+    "averagerating": 4.61,
+    "weightedRating": 4.61
+   },
+   "versions": [
+    {
+     "version": "1.4.2",
+     "lastUpdated": "2026-10-28T09:12:44.12Z",
+     "assetUri": "/vscodeoffline/demo/artifacts/acme/acme-python-pro/1.4.2",
+     "fallbackAssetUri": "/vscodeoffline/demo/artifacts/acme/acme-python-pro/1.4.2",
+     "files": [
+      {
+       "assetType": "Microsoft.VisualStudio.Services.Icons.Default",
+       "source": "/vscodeoffline/demo/artifacts/acme/acme-python-pro/1.4.2/icon.svg"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Services.Content.Details",
+       "source": "/vscodeoffline/demo/artifacts/acme/acme-python-pro/1.4.2/readme.md"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Services.Content.Changelog",
+       "source": "/vscodeoffline/demo/artifacts/acme/acme-python-pro/1.4.2/changelog.md"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Services.Content.License",
+       "source": "/vscodeoffline/demo/artifacts/acme/acme-python-pro/1.4.2/license.txt"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Code.Manifest",
+       "source": "/vscodeoffline/demo/artifacts/acme/acme-python-pro/1.4.2/manifest.json"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Services.VSIXPackage",
+       "source": "/vscodeoffline/demo/artifacts/acme/acme-python-pro/1.4.2/Microsoft.VisualStudio.Services.VSIXPackage"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Services.VsixSignature",
+       "source": "/vscodeoffline/demo/artifacts/acme/acme-python-pro/1.4.2/Microsoft.VisualStudio.Services.VsixSignature"
+      }
+     ],
+     "properties": [
+      {
+       "key": "Microsoft.VisualStudio.Code.Engine",
+       "value": "^1.85.0"
+      },
+      {
+       "key": "Microsoft.VisualStudio.Services.VsixSha256",
+       "value": "demoacme000000000000000000000000000000000000000000000000000000"
+      }
+     ]
+    },
+    {
+     "version": "1.4.1",
+     "lastUpdated": "2026-10-28T09:12:44.12Z",
+     "assetUri": "/vscodeoffline/demo/artifacts/acme/acme-python-pro/1.4.1",
+     "fallbackAssetUri": "/vscodeoffline/demo/artifacts/acme/acme-python-pro/1.4.1",
+     "files": [
+      {
+       "assetType": "Microsoft.VisualStudio.Services.Icons.Default",
+       "source": "/vscodeoffline/demo/artifacts/acme/acme-python-pro/1.4.1/icon.svg"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Services.Content.Details",
+       "source": "/vscodeoffline/demo/artifacts/acme/acme-python-pro/1.4.1/readme.md"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Services.Content.Changelog",
+       "source": "/vscodeoffline/demo/artifacts/acme/acme-python-pro/1.4.1/changelog.md"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Services.Content.License",
+       "source": "/vscodeoffline/demo/artifacts/acme/acme-python-pro/1.4.1/license.txt"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Code.Manifest",
+       "source": "/vscodeoffline/demo/artifacts/acme/acme-python-pro/1.4.1/manifest.json"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Services.VSIXPackage",
+       "source": "/vscodeoffline/demo/artifacts/acme/acme-python-pro/1.4.1/Microsoft.VisualStudio.Services.VSIXPackage"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Services.VsixSignature",
+       "source": "/vscodeoffline/demo/artifacts/acme/acme-python-pro/1.4.1/Microsoft.VisualStudio.Services.VsixSignature"
+      }
+     ],
+     "properties": [
+      {
+       "key": "Microsoft.VisualStudio.Code.Engine",
+       "value": "^1.85.0"
+      },
+      {
+       "key": "Microsoft.VisualStudio.Services.VsixSha256",
+       "value": "demoacme000000000000000000000000000000000000000000000000000000"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "identity": "northwind.northwind-night",
+   "publisher": {
+    "publisherId": "demo-northwind",
+    "publisherName": "northwind",
+    "displayName": "Northwind",
+    "flags": "verified"
+   },
+   "extensionId": "demo-northwind-night",
+   "extensionName": "northwind-night",
+   "displayName": "Northwind Night Theme",
+   "flags": "validated, public",
+   "shortDescription": "A low-contrast dark theme tuned for long on-call shifts.",
+   "publishedDate": "2025-03-14T10:00:00Z",
+   "releaseDate": "2025-03-14T10:00:00Z",
+   "lastUpdated": "2026-10-28T09:12:44.12Z",
+   "categories": [
+    "Themes"
+   ],
+   "tags": [
+    "theme",
+    "dark"
+   ],
+   "statistics": [
+    {
+     "statisticName": "install",
+     "value": 96410
+    },
+    {
+     "statisticName": "averagerating",
+     "value": 4.82
+    }
+   ],
+   "stats": {
+    "install": 96410,
+    "averagerating": 4.82,
+    "weightedRating": 4.82
+   },
+   "versions": [
+    {
+     "version": "3.0.2",
+     "lastUpdated": "2026-10-28T09:12:44.12Z",
+     "assetUri": "/vscodeoffline/demo/artifacts/northwind/northwind-night/3.0.2",
+     "fallbackAssetUri": "/vscodeoffline/demo/artifacts/northwind/northwind-night/3.0.2",
+     "files": [
+      {
+       "assetType": "Microsoft.VisualStudio.Services.Icons.Default",
+       "source": "/vscodeoffline/demo/artifacts/northwind/northwind-night/3.0.2/icon.svg"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Services.Content.Details",
+       "source": "/vscodeoffline/demo/artifacts/northwind/northwind-night/3.0.2/readme.md"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Services.Content.Changelog",
+       "source": "/vscodeoffline/demo/artifacts/northwind/northwind-night/3.0.2/changelog.md"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Services.Content.License",
+       "source": "/vscodeoffline/demo/artifacts/northwind/northwind-night/3.0.2/license.txt"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Code.Manifest",
+       "source": "/vscodeoffline/demo/artifacts/northwind/northwind-night/3.0.2/manifest.json"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Services.VSIXPackage",
+       "source": "/vscodeoffline/demo/artifacts/northwind/northwind-night/3.0.2/Microsoft.VisualStudio.Services.VSIXPackage"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Services.VsixSignature",
+       "source": "/vscodeoffline/demo/artifacts/northwind/northwind-night/3.0.2/Microsoft.VisualStudio.Services.VsixSignature"
+      }
+     ],
+     "properties": [
+      {
+       "key": "Microsoft.VisualStudio.Code.Engine",
+       "value": "^1.85.0"
+      },
+      {
+       "key": "Microsoft.VisualStudio.Services.VsixSha256",
+       "value": "demonorthwind0000000000000000000000000000000000000000000000000"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "identity": "contoso.contoso-docker-tools",
+   "publisher": {
+    "publisherId": "demo-contoso",
+    "publisherName": "contoso",
+    "displayName": "Contoso",
+    "flags": "verified"
+   },
+   "extensionId": "demo-contoso-docker-tools",
+   "extensionName": "contoso-docker-tools",
+   "displayName": "Contoso Docker Tools",
+   "flags": "validated, public",
+   "shortDescription": "Build, run and inspect containers against your internal registry without Internet access.",
+   "publishedDate": "2025-03-14T10:00:00Z",
+   "releaseDate": "2025-03-14T10:00:00Z",
+   "lastUpdated": "2026-10-28T09:12:44.12Z",
+   "categories": [
+    "Other"
+   ],
+   "tags": [
+    "docker",
+    "containers"
+   ],
+   "statistics": [
+    {
+     "statisticName": "install",
+     "value": 142877
+    },
+    {
+     "statisticName": "averagerating",
+     "value": 4.44
+    }
+   ],
+   "stats": {
+    "install": 142877,
+    "averagerating": 4.44,
+    "weightedRating": 4.44
+   },
+   "versions": [
+    {
+     "version": "2.7.0",
+     "lastUpdated": "2026-10-28T09:12:44.12Z",
+     "assetUri": "/vscodeoffline/demo/artifacts/contoso/contoso-docker-tools/2.7.0",
+     "fallbackAssetUri": "/vscodeoffline/demo/artifacts/contoso/contoso-docker-tools/2.7.0",
+     "files": [
+      {
+       "assetType": "Microsoft.VisualStudio.Services.Icons.Default",
+       "source": "/vscodeoffline/demo/artifacts/contoso/contoso-docker-tools/2.7.0/icon.svg"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Services.Content.Details",
+       "source": "/vscodeoffline/demo/artifacts/contoso/contoso-docker-tools/2.7.0/readme.md"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Services.Content.Changelog",
+       "source": "/vscodeoffline/demo/artifacts/contoso/contoso-docker-tools/2.7.0/changelog.md"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Services.Content.License",
+       "source": "/vscodeoffline/demo/artifacts/contoso/contoso-docker-tools/2.7.0/license.txt"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Code.Manifest",
+       "source": "/vscodeoffline/demo/artifacts/contoso/contoso-docker-tools/2.7.0/manifest.json"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Services.VSIXPackage",
+       "source": "/vscodeoffline/demo/artifacts/contoso/contoso-docker-tools/2.7.0/Microsoft.VisualStudio.Services.VSIXPackage"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Services.VsixSignature",
+       "source": "/vscodeoffline/demo/artifacts/contoso/contoso-docker-tools/2.7.0/Microsoft.VisualStudio.Services.VsixSignature"
+      }
+     ],
+     "properties": [
+      {
+       "key": "Microsoft.VisualStudio.Code.Engine",
+       "value": "^1.85.0"
+      },
+      {
+       "key": "Microsoft.VisualStudio.Services.VsixSha256",
+       "value": "democontoso000000000000000000000000000000000000000000000000000"
+      }
+     ]
+    },
+    {
+     "version": "2.7.0",
+     "lastUpdated": "2026-10-28T09:12:44.12Z",
+     "assetUri": "/vscodeoffline/demo/artifacts/contoso/contoso-docker-tools/2.7.0",
+     "fallbackAssetUri": "/vscodeoffline/demo/artifacts/contoso/contoso-docker-tools/2.7.0",
+     "files": [
+      {
+       "assetType": "Microsoft.VisualStudio.Services.Icons.Default",
+       "source": "/vscodeoffline/demo/artifacts/contoso/contoso-docker-tools/2.7.0/icon.svg"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Services.Content.Details",
+       "source": "/vscodeoffline/demo/artifacts/contoso/contoso-docker-tools/2.7.0/readme.md"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Services.Content.Changelog",
+       "source": "/vscodeoffline/demo/artifacts/contoso/contoso-docker-tools/2.7.0/changelog.md"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Services.Content.License",
+       "source": "/vscodeoffline/demo/artifacts/contoso/contoso-docker-tools/2.7.0/license.txt"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Code.Manifest",
+       "source": "/vscodeoffline/demo/artifacts/contoso/contoso-docker-tools/2.7.0/manifest.json"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Services.VSIXPackage",
+       "source": "/vscodeoffline/demo/artifacts/contoso/contoso-docker-tools/2.7.0/Microsoft.VisualStudio.Services.VSIXPackage"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Services.VsixSignature",
+       "source": "/vscodeoffline/demo/artifacts/contoso/contoso-docker-tools/2.7.0/Microsoft.VisualStudio.Services.VsixSignature"
+      }
+     ],
+     "properties": [
+      {
+       "key": "Microsoft.VisualStudio.Code.Engine",
+       "value": "^1.85.0"
+      },
+      {
+       "key": "Microsoft.VisualStudio.Services.VsixSha256",
+       "value": "democontoso000000000000000000000000000000000000000000000000000"
+      }
+     ],
+     "targetPlatform": "win32-x64"
+    },
+    {
+     "version": "2.7.0",
+     "lastUpdated": "2026-10-28T09:12:44.12Z",
+     "assetUri": "/vscodeoffline/demo/artifacts/contoso/contoso-docker-tools/2.7.0",
+     "fallbackAssetUri": "/vscodeoffline/demo/artifacts/contoso/contoso-docker-tools/2.7.0",
+     "files": [
+      {
+       "assetType": "Microsoft.VisualStudio.Services.Icons.Default",
+       "source": "/vscodeoffline/demo/artifacts/contoso/contoso-docker-tools/2.7.0/icon.svg"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Services.Content.Details",
+       "source": "/vscodeoffline/demo/artifacts/contoso/contoso-docker-tools/2.7.0/readme.md"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Services.Content.Changelog",
+       "source": "/vscodeoffline/demo/artifacts/contoso/contoso-docker-tools/2.7.0/changelog.md"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Services.Content.License",
+       "source": "/vscodeoffline/demo/artifacts/contoso/contoso-docker-tools/2.7.0/license.txt"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Code.Manifest",
+       "source": "/vscodeoffline/demo/artifacts/contoso/contoso-docker-tools/2.7.0/manifest.json"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Services.VSIXPackage",
+       "source": "/vscodeoffline/demo/artifacts/contoso/contoso-docker-tools/2.7.0/Microsoft.VisualStudio.Services.VSIXPackage"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Services.VsixSignature",
+       "source": "/vscodeoffline/demo/artifacts/contoso/contoso-docker-tools/2.7.0/Microsoft.VisualStudio.Services.VsixSignature"
+      }
+     ],
+     "properties": [
+      {
+       "key": "Microsoft.VisualStudio.Code.Engine",
+       "value": "^1.85.0"
+      },
+      {
+       "key": "Microsoft.VisualStudio.Services.VsixSha256",
+       "value": "democontoso000000000000000000000000000000000000000000000000000"
+      }
+     ],
+     "targetPlatform": "linux-x64"
+    }
+   ]
+  },
+  {
+   "identity": "fabrikam.fabrikam-git-insights",
+   "publisher": {
+    "publisherId": "demo-fabrikam",
+    "publisherName": "fabrikam",
+    "displayName": "Fabrikam",
+    "flags": "verified"
+   },
+   "extensionId": "demo-fabrikam-git-insights",
+   "extensionName": "fabrikam-git-insights",
+   "displayName": "Fabrikam Git Insights",
+   "flags": "validated, public",
+   "shortDescription": "Blame annotations, history heatmaps and branch insights for Fabrikam Git servers.",
+   "publishedDate": "2025-03-14T10:00:00Z",
+   "releaseDate": "2025-03-14T10:00:00Z",
+   "lastUpdated": "2026-10-28T09:12:44.12Z",
+   "categories": [
+    "SCM Providers"
+   ],
+   "tags": [
+    "git",
+    "history"
+   ],
+   "statistics": [
+    {
+     "statisticName": "install",
+     "value": 77532
+    },
+    {
+     "statisticName": "averagerating",
+     "value": 4.28
+    }
+   ],
+   "stats": {
+    "install": 77532,
+    "averagerating": 4.28,
+    "weightedRating": 4.28
+   },
+   "versions": [
+    {
+     "version": "0.9.8",
+     "lastUpdated": "2026-10-28T09:12:44.12Z",
+     "assetUri": "/vscodeoffline/demo/artifacts/fabrikam/fabrikam-git-insights/0.9.8",
+     "fallbackAssetUri": "/vscodeoffline/demo/artifacts/fabrikam/fabrikam-git-insights/0.9.8",
+     "files": [
+      {
+       "assetType": "Microsoft.VisualStudio.Services.Icons.Default",
+       "source": "/vscodeoffline/demo/artifacts/fabrikam/fabrikam-git-insights/0.9.8/icon.svg"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Services.Content.Details",
+       "source": "/vscodeoffline/demo/artifacts/fabrikam/fabrikam-git-insights/0.9.8/readme.md"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Services.Content.Changelog",
+       "source": "/vscodeoffline/demo/artifacts/fabrikam/fabrikam-git-insights/0.9.8/changelog.md"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Services.Content.License",
+       "source": "/vscodeoffline/demo/artifacts/fabrikam/fabrikam-git-insights/0.9.8/license.txt"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Code.Manifest",
+       "source": "/vscodeoffline/demo/artifacts/fabrikam/fabrikam-git-insights/0.9.8/manifest.json"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Services.VSIXPackage",
+       "source": "/vscodeoffline/demo/artifacts/fabrikam/fabrikam-git-insights/0.9.8/Microsoft.VisualStudio.Services.VSIXPackage"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Services.VsixSignature",
+       "source": "/vscodeoffline/demo/artifacts/fabrikam/fabrikam-git-insights/0.9.8/Microsoft.VisualStudio.Services.VsixSignature"
+      }
+     ],
+     "properties": [
+      {
+       "key": "Microsoft.VisualStudio.Code.Engine",
+       "value": "^1.85.0"
+      },
+      {
+       "key": "Microsoft.VisualStudio.Services.VsixSha256",
+       "value": "demofabrikam00000000000000000000000000000000000000000000000000"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "identity": "tailspin.tailspin-yaml-plus",
+   "publisher": {
+    "publisherId": "demo-tailspin",
+    "publisherName": "tailspin",
+    "displayName": "Tailspin",
+    "flags": "verified"
+   },
+   "extensionId": "demo-tailspin-yaml-plus",
+   "extensionName": "tailspin-yaml-plus",
+   "displayName": "Tailspin YAML Plus",
+   "flags": "validated, public",
+   "shortDescription": "Schema validation and folding for Tailspin deployment YAML.",
+   "publishedDate": "2025-03-14T10:00:00Z",
+   "releaseDate": "2025-03-14T10:00:00Z",
+   "lastUpdated": "2026-10-28T09:12:44.12Z",
+   "categories": [
+    "Programming Languages"
+   ],
+   "tags": [
+    "yaml",
+    "schema"
+   ],
+   "statistics": [
+    {
+     "statisticName": "install",
+     "value": 53120
+    },
+    {
+     "statisticName": "averagerating",
+     "value": 4.05
+    }
+   ],
+   "stats": {
+    "install": 53120,
+    "averagerating": 4.05,
+    "weightedRating": 4.05
+   },
+   "versions": [
+    {
+     "version": "1.2.0",
+     "lastUpdated": "2026-10-28T09:12:44.12Z",
+     "assetUri": "/vscodeoffline/demo/artifacts/tailspin/tailspin-yaml-plus/1.2.0",
+     "fallbackAssetUri": "/vscodeoffline/demo/artifacts/tailspin/tailspin-yaml-plus/1.2.0",
+     "files": [
+      {
+       "assetType": "Microsoft.VisualStudio.Services.Icons.Default",
+       "source": "/vscodeoffline/demo/artifacts/tailspin/tailspin-yaml-plus/1.2.0/icon.svg"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Services.Content.Details",
+       "source": "/vscodeoffline/demo/artifacts/tailspin/tailspin-yaml-plus/1.2.0/readme.md"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Services.Content.Changelog",
+       "source": "/vscodeoffline/demo/artifacts/tailspin/tailspin-yaml-plus/1.2.0/changelog.md"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Services.Content.License",
+       "source": "/vscodeoffline/demo/artifacts/tailspin/tailspin-yaml-plus/1.2.0/license.txt"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Code.Manifest",
+       "source": "/vscodeoffline/demo/artifacts/tailspin/tailspin-yaml-plus/1.2.0/manifest.json"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Services.VSIXPackage",
+       "source": "/vscodeoffline/demo/artifacts/tailspin/tailspin-yaml-plus/1.2.0/Microsoft.VisualStudio.Services.VSIXPackage"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Services.VsixSignature",
+       "source": "/vscodeoffline/demo/artifacts/tailspin/tailspin-yaml-plus/1.2.0/Microsoft.VisualStudio.Services.VsixSignature"
+      }
+     ],
+     "properties": [
+      {
+       "key": "Microsoft.VisualStudio.Code.Engine",
+       "value": "^1.85.0"
+      },
+      {
+       "key": "Microsoft.VisualStudio.Services.VsixSha256",
+       "value": "demotailspin00000000000000000000000000000000000000000000000000"
+      }
+     ]
+    },
+    {
+     "version": "1.1.4",
+     "lastUpdated": "2026-10-28T09:12:44.12Z",
+     "assetUri": "/vscodeoffline/demo/artifacts/tailspin/tailspin-yaml-plus/1.1.4",
+     "fallbackAssetUri": "/vscodeoffline/demo/artifacts/tailspin/tailspin-yaml-plus/1.1.4",
+     "files": [
+      {
+       "assetType": "Microsoft.VisualStudio.Services.Icons.Default",
+       "source": "/vscodeoffline/demo/artifacts/tailspin/tailspin-yaml-plus/1.1.4/icon.svg"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Services.Content.Details",
+       "source": "/vscodeoffline/demo/artifacts/tailspin/tailspin-yaml-plus/1.1.4/readme.md"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Services.Content.Changelog",
+       "source": "/vscodeoffline/demo/artifacts/tailspin/tailspin-yaml-plus/1.1.4/changelog.md"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Services.Content.License",
+       "source": "/vscodeoffline/demo/artifacts/tailspin/tailspin-yaml-plus/1.1.4/license.txt"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Code.Manifest",
+       "source": "/vscodeoffline/demo/artifacts/tailspin/tailspin-yaml-plus/1.1.4/manifest.json"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Services.VSIXPackage",
+       "source": "/vscodeoffline/demo/artifacts/tailspin/tailspin-yaml-plus/1.1.4/Microsoft.VisualStudio.Services.VSIXPackage"
+      },
+      {
+       "assetType": "Microsoft.VisualStudio.Services.VsixSignature",
+       "source": "/vscodeoffline/demo/artifacts/tailspin/tailspin-yaml-plus/1.1.4/Microsoft.VisualStudio.Services.VsixSignature"
+      }
+     ],
+     "properties": [
+      {
+       "key": "Microsoft.VisualStudio.Code.Engine",
+       "value": "^1.85.0"
+      },
+      {
+       "key": "Microsoft.VisualStudio.Services.VsixSha256",
+       "value": "demotailspin00000000000000000000000000000000000000000000000000"
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "binaries": [
+  {
+   "identity": "win32-x64",
+   "quality": "stable",
+   "versions": [
+    {
+     "version": "f1a4fb101478ce6ec82fe9627c43efbf9e98c813",
+     "name": "1.95.3",
+     "productVersion": "1.95.3",
+     "platform": "win32",
+     "architecture": "x64",
+     "buildtype": "archive",
+     "quality": "stable",
+     "timestamp": "2026-10-30T09:12:44.123Z",
+     "sha256hash": "9f2aa4d0b6c1d3e5f708192a4b5c6d7e8f90123456789abcdef0123456789abcd",
+     "sizeBytes": 104857600,
+     "downloadUrl": "/vscodeoffline/demo/artifacts/installers/win32-x64/stable/vscode-1.95.3.zip"
+    }
+   ]
+  },
+  {
+   "identity": "linux-x64",
+   "quality": "insider",
+   "versions": [
+    {
+     "version": "b5c6d7e8f90123456789abcdef0123456789abcdef",
+     "name": "1.96.0-insider",
+     "productVersion": "1.96.0-insider",
+     "platform": "linux",
+     "architecture": "x64",
+     "buildtype": "archive",
+     "quality": "insider",
+     "timestamp": "2026-11-06T14:03:11.512Z",
+     "sha256hash": "ab1234567890cdef0123456789abcdef0123456789abcdef0123456789abcdef01",
+     "sizeBytes": 98700000,
+     "downloadUrl": "/vscodeoffline/demo/artifacts/installers/linux-x64/insider/vscode-1.96.0-insider.tar.gz"
+    }
+   ]
+  }
+ ],
+ "signatureVerification": "Performed by VS Code, not this mirror"
+}

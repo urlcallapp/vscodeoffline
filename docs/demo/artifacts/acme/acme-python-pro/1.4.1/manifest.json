@@ -1,0 +1,7 @@
+{
+  "name": "acme-python-pro",
+  "publisher": "acme",
+  "version": "1.4.1",
+  "engines": { "vscode": "^1.85.0" },
+  "main": "./out/extension.js"
+}

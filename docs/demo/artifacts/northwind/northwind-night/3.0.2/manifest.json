@@ -1,0 +1,7 @@
+{
+  "name": "northwind-night",
+  "publisher": "northwind",
+  "version": "3.0.2",
+  "engines": { "vscode": "^1.85.0" },
+  "main": "./out/extension.js"
+}

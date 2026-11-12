@@ -1,0 +1,7 @@
+{
+  "name": "tailspin-yaml-plus",
+  "publisher": "tailspin",
+  "version": "1.2.0",
+  "engines": { "vscode": "^1.85.0" },
+  "main": "./out/extension.js"
+}
